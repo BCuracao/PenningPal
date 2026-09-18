@@ -104,14 +104,18 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 # Store branding: generated into ios/ and android/ via
-# `dart run flutter_launcher_icons` / `dart run flutter_native_splash:create`.
+# `dart run tool/generate_penningpal_icon.dart`
+# `dart run flutter_launcher_icons`
+# `dart run flutter_native_splash:create`.
 flutter_launcher_icons:
-  android: true
+  android: "launcher_icon"
   ios: true
-  image_path: assets/icon/app_icon.png
-  adaptive_icon_background: "#0F172A"
-  adaptive_icon_foreground: assets/icon/app_icon_foreground.png
+  image_path: "assets/icon/app_icon.png"
   min_sdk_android: 21
+  adaptive_icon_background: "assets/icon/icon_background.png"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  # Foreground PNG already keeps the emblem in the central 66% safe zone.
+  adaptive_icon_foreground_inset: 0
   remove_alpha_ios: true
   web:
     generate: false
@@ -121,17 +125,17 @@ flutter_launcher_icons:
     generate: false
 
 flutter_native_splash:
-  color: "#0F172A"
-  color_dark: "#0F172A"
-  image: assets/icon/splash_icon.png
-  image_dark: assets/icon/splash_icon.png
+  color: "#0B0F19"
+  color_dark: "#0B0F19"
+  image: "assets/icon/icon_foreground.png"
+  image_dark: "assets/icon/icon_foreground.png"
   android_12:
-    color: "#0F172A"
-    color_dark: "#0F172A"
-    icon_background_color: "#0F172A"
-    icon_background_color_dark: "#0F172A"
-    image: assets/icon/app_icon_foreground.png
-    image_dark: assets/icon/app_icon_foreground.png
+    image: "assets/icon/icon_foreground.png"
+    image_dark: "assets/icon/icon_foreground.png"
+    icon_background_color: "#0B0F19"
+    icon_background_color_dark: "#0B0F19"
+    color: "#0B0F19"
+    color_dark: "#0B0F19"
   android: true
   ios: true
   web: false

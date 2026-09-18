@@ -99,5 +99,5 @@ lib/
 
 ### 4.6. Store Identity & Release
 * Display name is **PenningPal** (`MaterialApp.title`, iOS `CFBundleDisplayName` / `CFBundleName`, Android `android:label`). Package IDs remain `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android).
-* Launcher icons and native splash are generated from `assets/icon/` (`#0F172A` slate field, geometric **S** glyph) via `flutter_launcher_icons` and `flutter_native_splash`.
+* Launcher icons and native splash are generated from `assets/icon/` (deep slate `#0B0F19` → `#1E293B` field, geometric fountain-pen nib over a rounded card/slate) via `tool/generate_penningpal_icon.dart`, `flutter_launcher_icons`, and `flutter_native_splash`. Android adaptive icons use `icon_background.png` + `icon_foreground.png`; iOS master `app_icon.png` is opaque RGB.
 * Android release builds enable R8/ProGuard (`android/app/proguard-rules.pro`) with keep rules for Hive adapters, RevenueCat, and Play Billing.

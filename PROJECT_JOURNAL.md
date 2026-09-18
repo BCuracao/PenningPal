@@ -27,6 +27,7 @@
 - [x] Task 3.6: Implement rich Markdown card rendering, auto-scaling typography, and hardened carousel splitting.
 - [x] Task 4.1: Integrate RevenueCat lifetime paywall gate.
 - [x] Task 4.2: Configure App branding (SocialSlate), offline legal pages, launcher icons, and release ProGuard rules.
+- [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
 
 ## Session Log
 <!-- Agents append timestamped summaries of completed work here -->
@@ -212,3 +213,12 @@
 - Tests updated for display name, paywall headline, drawer brand, watermark fallback, and share text.
 - Modified: `ios/Runner/Info.plist`, `android/app/src/main/AndroidManifest.xml`, `web/{index.html,manifest.json}`, `macos/Runner/Configs/AppInfo.xcconfig`, `linux/runner/my_application.cc`, `windows/runner/{main.cpp,Runner.rc}`, `lib/main.dart`, `lib/features/{scratchpad/presentation/{drafts_drawer,settings_bottom_sheet},paywall/paywall_bottom_sheet,exporter/{presentation/card_canvas,templates/card_theme_config,render/card_export_service}}.dart`, `assets/legal/*`, `assets/icon/app_icon.svg`, tests, `docs/ARCHITECTURE.md`, `.cursor/rules/00-project.mdc`, `README.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: none for naming; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-19 — Task 4.3: PenningPal 1024×1024 launcher icons
+- Official mark: deep slate gradient `#0B0F19` → `#1E293B`, geometric fountain-pen nib (amber `#F59E0B` tip, off-white `#F8FAFC` metal) overlapping a rounded card/slate. Replaces the previous SocialSlate **S** glyph.
+- Generator: `tool/generate_penningpal_icon.dart` (software SDF rasterizer + PNG encoder) writes `assets/icon/app_icon.png` (opaque RGB master), `icon_background.png` (solid `#0B0F19`), and `icon_foreground.png` (transparent emblem in the central ~66% adaptive safe zone). Vector companion: `assets/icon/penningpal_icon.svg` / `app_icon.svg`.
+- `flutter_launcher_icons`: iOS catalog + Android adaptive `launcher_icon` (`adaptive_icon_foreground_inset: 0`, `remove_alpha_ios: true`). Manifest `android:icon` is `@mipmap/launcher_icon`.
+- `flutter_native_splash`: launch color `#0B0F19` with the foreground emblem (including Android 12 splash icon background).
+- Verified: iOS `AppIcon.appiconset` PNGs are RGB with no alpha; Android `mipmap-{m,h,xh,xxh,xxxh}dpi` contain `launcher_icon.png` plus adaptive foreground/background drawables.
+- Modified: `tool/generate_penningpal_icon.dart`, `assets/icon/*`, `pubspec.yaml`, `android/app/src/main/AndroidManifest.xml`, generated `ios/Runner/Assets.xcassets/` and `android/app/src/main/res/` mipmaps/splash, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for icons; still replace RevenueCat placeholder keys before store shipping.
