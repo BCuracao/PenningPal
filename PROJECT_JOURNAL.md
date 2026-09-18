@@ -4,6 +4,7 @@
 - **Current Phase**: Phase 4 — Lifetime Paywall (complete)
 - **Current Blocker**: None. Replace placeholder RevenueCat public keys and store product IDs before App Store / Play shipping.
 - **Target Stack**: Flutter (latest stable), State: Riverpod or Signals, Clipboard: `super_clipboard`, Storage: Hive / SharedPrefs
+- **Git Remote**: `origin` → https://github.com/BCuracao/SocialSlate (`main`, public). Working tree tracks `origin/main`.
 
 ## Architectural Decision Records (ADRs)
 * **ADR-001 (Engine Separation)**: All Markdown-to-Unicode and Markdown-to-HTML transformers must reside in `lib/core/converter/` as pure Dart libraries without Flutter UI framework imports.
@@ -123,8 +124,9 @@
 - Modified: `pubspec.yaml`, `lib/core/config/revenue_cat_config.dart`, `lib/features/paywall/{paywall_service,paywall_provider,paywall_bottom_sheet}.dart`, `lib/features/exporter/{templates/card_theme_config,presentation/card_canvas,presentation/card_exporter_screen}.dart`, `lib/main.dart`, `android/app/src/main/AndroidManifest.xml`, `test/features/paywall_test.dart`, `test/helpers/fake_paywall_service.dart`, exporter/widget tests, `PROJECT_JOURNAL.md`.
 - Follow-up: swap placeholder API keys; create `pro_lifetime` in App Store Connect / Play Console; attach it to `pro_access` in the RevenueCat dashboard; enable the iOS In-App Purchase capability before store submission.
 
-### 2026-09-18 — Git hygiene + GitHub remote (`socialslate`)
-- Hardened root `.gitignore`: Flutter/Dart artifacts (`build/`, `.dart_tool/`, `.flutter-plugins*`, iOS Generated/*, `android/.gradle/`, `local.properties`), secrets (`.env*`, `*.jks`/`*.keystore`/`*.p12`/`*.key`), IDE caches (`.idea/`, `.vscode/`, `*.iml`), while keeping `.cursor/rules/` tracked.
-- Initialized Git on `main`, committed project assets (source, tests, docs, Cursor rules), created GitHub remote `socialslate`, pushed `main`.
-- Modified: `.gitignore`, `PROJECT_JOURNAL.md`; created remote `origin` → `socialslate`.
+### 2026-09-18 — Git hygiene + GitHub remote (`SocialSlate`)
+- Hardened root `.gitignore`: Flutter/Dart artifacts (`build/`, `.dart_tool/`, `.flutter-plugins*`, `.packages`, iOS Generated/*, `android/.gradle/`, `local.properties`), secrets (`.env*`, `*.jks`/`*.keystore`/`*.p12`/`*.key`), IDE caches (`.DS_Store`, `.idea/`, `.vscode/`, `*.iml`), while keeping `.cursor/rules/` tracked.
+- Initialized Git on `main`, initial commit of MVP assets (engines, scratchpad/Hive, card exporter, clipboard, paywall, Cursor rules, architecture docs).
+- GitHub: renamed remote to **SocialSlate**, set **public**, `origin` → https://github.com/BCuracao/SocialSlate, `main` pushed and tracking.
+- Modified: `.gitignore`, `PROJECT_JOURNAL.md` (Active State remote URL + this session log).
 - Follow-up: none for VCS; still replace RevenueCat placeholder keys before store shipping.
