@@ -1,0 +1,19 @@
+---
+description: Rules for Markdown parsing, Unicode character translation, and system clipboard operations
+globs: lib/core/converter/**, lib/core/clipboard/**, test/core/**
+alwaysApply: false
+---
+# Formatting & Clipboard Engine Standards
+
+## Unicode Transformation Engine
+- Map standard Markdown tokens (`**bold**`, `*italic*`, `_italic_`, ` `code` `) to Mathematical Alphanumeric Symbols:
+  - Bold: `U+1D400` – `U+1D433` (A–Z, a–z)
+  - Italic: `U+1D434` – `U+1D467`
+  - Bold Italic: `U+1D468` – `U+1D49B`
+  - Monospace: `U+1D670` – `U+1D6A3`
+- **Exceptions & Fallbacks**: Punctuation, symbols, numerals (unless specific math digits apply), and non-Latin characters must pass through unchanged without throwing runtime exceptions.
+- **Whitespace Handling**: LinkedIn and X strip soft breaks. Replace trailing soft breaks with hard breaks (`\n\n`) or zero-width spaces (`\u200B`) where whitespace collapse prevention is requested.
+
+## Clipboard Writing
+- Use `super_clipboard` for rich copy operations.
+- Substack/Medium targets MUST write both `text/html` and a cleaned `text/plain` fallback into the clipboard buffer in a single write operation.

@@ -1,0 +1,14 @@
+---
+description: Rules for canvas rendering, aspect-ratio scaling, and off-screen image generation
+globs: lib/features/exporter/**, lib/shared/widgets/cards/**
+alwaysApply: false
+---
+# Visual Card Exporter Standards
+
+## Canvas Architecture
+- Generate images using off-screen `RepaintBoundary` linked via a dedicated `GlobalKey`.
+- Card dimensions must strictly match target social dimensions regardless of device screen size:
+  - **1:1 Square**: `1080 x 1080 px`
+  - **9:16 Vertical Story**: `1080 x 1920 px`
+- Always apply a fixed `pixelRatio` (minimum `3.0`) when rasterizing to `dart:ui.Image` to prevent blurry text on high-DPI displays.
+- Keep layout components completely stateless. Wrap canvas previews in a container that supports pan/zoom without recalculating the render boundary.

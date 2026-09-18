@@ -1,0 +1,16 @@
+---
+description: Core project context, architectural invariants, and agent workflows
+alwaysApply: true
+---
+# Clean Canvas — Core Directives
+
+## Mission & Invariants
+- **Zero Backend**: Clean Canvas is a 100% offline, client-side utility. Never suggest, import, or architect cloud backends, remote auth (Firebase/Supabase), or external APIs.
+- **Stack**: Flutter (Dart) targeting iOS and Android first.
+- **Monetization Boundary**: Free tier allows unlimited text transformation and clipboard export. Pro tier ($4.99 one-time unlock via RevenueCat) gates custom card themes and removes watermarks.
+
+## Coding Agent Discipline
+1. **Check the Journal First**: At the start of any multi-file refactor or feature implementation, read `PROJECT_JOURNAL.md`.
+2. **Update on Completion**: Append your changes, modified files, and open follow-ups to `PROJECT_JOURNAL.md` under `## Session Log`.
+3. **Deterministic Logic**: Text conversion logic must be isolated in pure, testable Dart classes with zero UI dependencies. Always write unit tests before touching UI bindings.
+4. **No Regressions on Accessibility**: Mathematical Alphanumeric Unicode alters screen-reader output. Keep transformations non-destructive to the original raw markdown buffer.

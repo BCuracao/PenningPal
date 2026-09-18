@@ -1,0 +1,65 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code (local IDE cache)
+.vscode/
+
+# Flutter / Dart
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+/coverage/
+ios/Flutter/Generated.xcframework
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.framework
+ios/Flutter/ephemeral/
+macos/Flutter/ephemeral/
+android/.gradle/
+android/captures/
+android/local.properties
+android/app/debug
+android/app/profile
+android/app/release
+
+# Symbolication / obfuscation
+app.*.symbols
+app.*.map.json
+
+# Widget Preview
+.widget_preview/
+
+# Sensitive keys & keystores
+*.keystore
+*.jks
+*.p12
+*.key
+.env*
+!*.env.example
+
+# Cursor: keep prompt rules tracked across devices
+!.cursor/rules/
