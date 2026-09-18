@@ -17,7 +17,4 @@ abstract final class RevenueCatConfig {
   static const String productId = 'pro_lifetime';
 
   static const String lifetimePriceLabel = r'$4.99';
-
-  static const String termsOfUseUrl = 'https://cleancanvas.app/terms';
-  static const String privacyPolicyUrl = 'https://cleancanvas.app/privacy';
 }

@@ -1,6 +1,6 @@
-# clean_canvas
+# PenningPal
 
-A new Flutter project.
+Offline markdown formatting utility for social platforms.
 
 ## Getting Started
 

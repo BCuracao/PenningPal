@@ -2,10 +2,10 @@
 description: Core project context, architectural invariants, and agent workflows
 alwaysApply: true
 ---
-# Clean Canvas — Core Directives
+# PenningPal — Core Directives
 
 ## Mission & Invariants
-- **Zero Backend**: Clean Canvas is a 100% offline, client-side utility. Never suggest, import, or architect cloud backends, remote auth (Firebase/Supabase), or external APIs.
+- **Zero Backend**: PenningPal is a 100% offline, client-side utility. Never suggest, import, or architect cloud backends, remote auth (Firebase/Supabase), or external APIs.
 - **Stack**: Flutter (Dart) targeting iOS and Android first.
 - **Monetization Boundary**: Free tier allows unlimited text transformation and clipboard export. Pro tier ($4.99 one-time unlock via RevenueCat) gates custom card themes and removes watermarks.
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/revenue_cat_config.dart';
+import '../scratchpad/presentation/legal_document_viewer.dart';
 import 'paywall_provider.dart';
 
 /// High-converting lifetime unlock sheet. Returns `true` when Pro becomes
@@ -49,7 +49,7 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Unlock SocialSlate Pro',
+            'Unlock PenningPal Pro',
             key: const Key('paywall-headline'),
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
@@ -161,7 +161,7 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
                 key: const Key('paywall-terms'),
                 onPressed: _busy
                     ? null
-                    : () => _openLegal(RevenueCatConfig.termsOfUseUrl),
+                    : () => LegalDocumentViewer.showTerms(context),
                 child: Text(
                   'Terms',
                   style: GoogleFonts.inter(fontSize: 12),
@@ -177,7 +177,7 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
                 key: const Key('paywall-privacy'),
                 onPressed: _busy
                     ? null
-                    : () => _openLegal(RevenueCatConfig.privacyPolicyUrl),
+                    : () => LegalDocumentViewer.showPrivacy(context),
                 child: Text(
                   'Privacy',
                   style: GoogleFonts.inter(fontSize: 12),
@@ -224,15 +224,6 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
     setState(() {
       _errorMessage = 'No Pro purchase was found to restore.';
     });
-  }
-
-  Future<void> _openLegal(String url) async {
-    final uri = Uri.parse(url);
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      // Legal links are required on the sheet even if the OS cannot open them.
-    }
   }
 }
 

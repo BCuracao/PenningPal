@@ -1,3 +1,5 @@
+import '../../../core/persistence/draft_storage.dart';
+
 /// Immutable snapshot of the scratchpad editor.
 ///
 /// Stats are derived from [content] with no Flutter or I/O dependencies so
@@ -9,6 +11,8 @@ class ScratchpadState {
     required this.charCount,
     required this.estimatedReadMinutes,
     this.isSaving = false,
+    this.activeDraftId = '',
+    this.title = Draft.untitled,
   });
 
   static const int wordsPerMinute = 200;
@@ -28,11 +32,15 @@ class ScratchpadState {
   final int charCount;
   final int estimatedReadMinutes;
   final bool isSaving;
+  final String activeDraftId;
+  final String title;
 
   /// Builds a full state snapshot from raw editor [content].
   factory ScratchpadState.fromContent(
     String content, {
     bool isSaving = false,
+    String activeDraftId = '',
+    String? title,
   }) {
     final words = countWords(content);
     return ScratchpadState(
@@ -41,6 +49,20 @@ class ScratchpadState {
       charCount: content.length,
       estimatedReadMinutes: estimateReadMinutes(words),
       isSaving: isSaving,
+      activeDraftId: activeDraftId,
+      title: title ?? Draft.inferTitle(content),
+    );
+  }
+
+  factory ScratchpadState.fromDraft(
+    Draft draft, {
+    bool isSaving = false,
+  }) {
+    return ScratchpadState.fromContent(
+      draft.content,
+      isSaving: isSaving,
+      activeDraftId: draft.id,
+      title: draft.title,
     );
   }
 
@@ -64,6 +86,8 @@ class ScratchpadState {
     int? charCount,
     int? estimatedReadMinutes,
     bool? isSaving,
+    String? activeDraftId,
+    String? title,
   }) {
     return ScratchpadState(
       content: content ?? this.content,
@@ -71,6 +95,8 @@ class ScratchpadState {
       charCount: charCount ?? this.charCount,
       estimatedReadMinutes: estimatedReadMinutes ?? this.estimatedReadMinutes,
       isSaving: isSaving ?? this.isSaving,
+      activeDraftId: activeDraftId ?? this.activeDraftId,
+      title: title ?? this.title,
     );
   }
 }

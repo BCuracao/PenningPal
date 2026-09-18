@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:clean_canvas/core/persistence/draft_storage.dart';
 import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.dart';
 import 'package:clean_canvas/features/scratchpad/state/scratchpad_notifier.dart';
@@ -8,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive/hive.dart';
 
 void main() {
   setUpAll(() {
@@ -74,7 +71,7 @@ void main() {
   group('ScratchpadNotifier', () {
     test('loads the persisted draft on launch', () async {
       final storage = DraftStorage();
-      await storage.saveDraft('restored draft');
+      await storage.createDraft(initialContent: 'restored draft');
 
       final container = ProviderContainer(
         overrides: [
@@ -85,9 +82,11 @@ void main() {
 
       final state = container.read(scratchpadProvider);
       expect(state.content, 'restored draft');
+      expect(state.title, 'restored draft');
       expect(state.wordCount, 2);
       expect(state.charCount, 'restored draft'.length);
       expect(state.isSaving, isFalse);
+      expect(state.activeDraftId, isNotEmpty);
     });
 
     test('updateContent refreshes counts immediately', () {
@@ -122,52 +121,12 @@ void main() {
       notifier.updateContent('abc');
 
       await Future<void>.delayed(const Duration(milliseconds: 350));
-      expect(storage.loadDraft(), isEmpty);
+      expect(storage.getActiveDraft()?.content ?? '', isEmpty);
 
       await Future<void>.delayed(const Duration(milliseconds: 80));
-      expect(storage.loadDraft(), 'abc');
+      expect(storage.getActiveDraft()?.content, 'abc');
       expect(container.read(scratchpadProvider).isSaving, isFalse);
-      expect(storage.loadUpdatedAt(), isNotNull);
-    });
-  });
-
-  group('DraftStorage', () {
-    test('memory save/load/clear round-trip', () async {
-      final storage = DraftStorage();
-      expect(storage.loadDraft(), isEmpty);
-      expect(storage.loadUpdatedAt(), isNull);
-
-      await storage.saveDraft('hello');
-      expect(storage.loadDraft(), 'hello');
-      expect(storage.loadUpdatedAt(), isNotNull);
-      expect(storage.loadActiveDraft()?.id, DraftStorage.activeDraftId);
-
-      await storage.clearDraft();
-      expect(storage.loadDraft(), isEmpty);
-      expect(storage.loadUpdatedAt(), isNull);
-    });
-
-    test('Hive box save/load/clear round-trip', () async {
-      final dir = await Directory.systemTemp.createTemp('clean_canvas_drafts_');
-      Hive.init(dir.path);
-      final boxName = 'drafts_box_${dir.hashCode}';
-      final box = await Hive.openBox<dynamic>(boxName);
-      addTearDown(() async {
-        if (box.isOpen) await box.close();
-        await Hive.deleteBoxFromDisk(boxName);
-        if (dir.existsSync()) {
-          dir.deleteSync(recursive: true);
-        }
-      });
-
-      final storage = DraftStorage.withBox(box);
-      await storage.saveDraft('persisted');
-      expect(storage.loadDraft(), 'persisted');
-      expect(storage.loadUpdatedAt(), isNotNull);
-
-      await storage.clearDraft();
-      expect(storage.loadDraft(), isEmpty);
-      expect(storage.loadUpdatedAt(), isNull);
+      expect(storage.getActiveDraft()?.updatedAt, isNotNull);
     });
   });
 

@@ -1,14 +1,15 @@
-# Clean Canvas — Project Journal
+# PenningPal — Project Journal
 
 ## Active State
 - **Current Phase**: Phase 4 — Lifetime Paywall (complete)
+- **Official name**: **PenningPal** (rebranded from working titles Clean Canvas / SocialSlate). User-facing strings, native display names, watermarks, and legal copy use PenningPal. Package IDs remain `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android).
 - **Current Blocker**: None. Replace placeholder RevenueCat public keys and store product IDs before App Store / Play shipping.
 - **Target Stack**: Flutter (latest stable), State: Riverpod or Signals, Clipboard: `super_clipboard`, Storage: Hive / SharedPrefs
 - **Git Remote**: `origin` → https://github.com/BCuracao/SocialSlate (`main`, public). Working tree tracks `origin/main`.
 
 ## Architectural Decision Records (ADRs)
 * **ADR-001 (Engine Separation)**: All Markdown-to-Unicode and Markdown-to-HTML transformers must reside in `lib/core/converter/` as pure Dart libraries without Flutter UI framework imports.
-* **ADR-002 (Local Persistence)**: User scratchpad auto-saves on every debounce (400ms) locally via Hive. No sync engine needed.
+* **ADR-002 (Local Persistence)**: User scratchpad auto-saves on every debounce (400ms) locally via Hive. Multiple drafts live in `drafts_box`; no sync engine needed.
 * **ADR-003 (IAP Provider)**: RevenueCat SDK will manage StoreKit and Google Play Billing for the single $4.99 non-consumable product ID (`pro_lifetime`).
 
 ## Development Roadmap
@@ -17,9 +18,15 @@
 - [x] Task 1.3: Implement `HtmlClipboardService` with dual MIME-type support (`text/html`, `text/plain`).
 - [x] Task 2.1: Build minimal markdown scratchpad UI with word/character count indicators.
 - [x] Task 2.2: Add one-tap platform export actions (LinkedIn, X, Substack).
+- [x] Task 2.3: Implement visual keyboard formatting toolbar and real-time styled text controller.
+- [x] Task 2.4: Implement Multi-Draft Drawer, auto-titling, and App Settings.
 - [x] Task 3.1: Implement `CardExportCanvas` with 1:1 and 9:16 aspect ratio templates.
 - [x] Task 3.2: Implement image save to gallery (`image_gallery_saver` or native share sheet).
+- [x] Task 3.4: Implement Multi-Slide Carousel splitting, pagination badges, and batch export.
+- [x] Task 3.5: Implement on-device syntax highlighting for code cards and terminal templates.
+- [x] Task 3.6: Implement rich Markdown card rendering, auto-scaling typography, and hardened carousel splitting.
 - [x] Task 4.1: Integrate RevenueCat lifetime paywall gate.
+- [x] Task 4.2: Configure App branding (SocialSlate), offline legal pages, launcher icons, and release ProGuard rules.
 
 ## Session Log
 <!-- Agents append timestamped summaries of completed work here -->
@@ -130,3 +137,78 @@
 - GitHub: renamed remote to **SocialSlate**, set **public**, `origin` → https://github.com/BCuracao/SocialSlate, `main` pushed and tracking.
 - Modified: `.gitignore`, `PROJECT_JOURNAL.md` (Active State remote URL + this session log).
 - Follow-up: none for VCS; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-18 — Task 3.4: Multi-slide carousel engine
+- `CarouselDeck.fromMarkdown` in `lib/features/exporter/models/carousel_deck.dart` (pure Dart) splits the scratchpad draft on markdown thematic breaks (`---`, `***`, `___`, 3+ markers, start/end of file). Empty segments are discarded; no divider → a single slide. Original buffer is never mutated.
+- `CardCanvas` accepts optional `currentSlideIndex` / `totalSlides` and paints a top-right `N / M` pill when `totalSlides > 1`, kept clear of the author header and watermark. `isProPurchased` still gates the watermark on every slide.
+- `CardExporterScreen` uses `PageView.builder` for carousels, with a “Slide X of Y” banner, prev/next arrows, and dot indicators. Action labels switch: *Share Image* / *Save Image* vs *Share Carousel (N Slides)* / *Save All (N Slides)*. A linear progress bar shows “Exporting slide X of Y...” during batch work.
+- `CarouselBatchExporter.renderDeck` inserts an off-screen overlay `CardCanvas`, presents each slide, waits for paint, then rasterizes at `pixelRatio: 3.0` so only one `ui.Image` is live at a time. `CardExportService.shareAllSlides` writes unique temp PNGs and opens one share sheet; `saveAllToGallery` saves sequentially and returns the saved count.
+- Tests: `test/features/carousel_deck_test.dart` — divider variants, fallback, pagination strings, badge layout, paging UI, batch labels/progress, Pro watermark forwarding, sequential capture, multi-file share/save. `flutter test` 170 passed; `flutter analyze lib test` clean.
+- Modified: `lib/features/exporter/models/carousel_deck.dart`, `lib/features/exporter/render/carousel_batch_exporter.dart`, `lib/features/exporter/{presentation/card_canvas,presentation/card_exporter_screen,render/card_export_service}.dart`, `test/features/carousel_deck_test.dart`, exporter/widget tests for the new button labels, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for carousels; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-18 — Task 3.5: On-device syntax highlighting
+- Added `flutter_highlight` ^0.7.0 and `highlight` ^0.7.0. Tokenizing and palettes stay on-device; no network calls.
+- `CodeBlockParser` in `lib/features/exporter/render/code_block_parser.dart` (pure Dart) splits slide markdown on fenced blocks (` ```lang ` / closing fence), preserves surrounding prose, and maps aliases (`js`/`ts`/`py`/`rs`/`c#`, …) onto highlight.js ids. Missing or unknown tags skip coloring.
+- `SyntaxCardBlock` embeds in `CardCanvas`: JetBrains Mono, wrap + dynamic font scale so 1080×1080 / 1080×1920 exports stay unclipped.
+  - **Dev Terminal**: `#0D1117` pane, Atom One Dark tokens, macOS traffic-light chrome (replaces the outer title bar when a fence is present).
+  - **Minimal**: `#F1F5F9` pane, GitHub Light tokens, no chrome.
+  - **Midnight**: same dark pane/tokens as Terminal, no chrome.
+- Mixed slides render prose → code → prose. Fence-free Terminal cards keep the existing line-tint fallback.
+- Tests: `test/features/code_highlight_test.dart` — language/no-language/unrecognized, mixed parse, buffer non-mutation, canvas overflow on long snippets, theme palettes. `flutter test` 185 passed; `flutter analyze lib test` clean.
+- Modified: `pubspec.yaml`, `lib/features/exporter/render/code_block_parser.dart`, `lib/features/exporter/presentation/syntax_card_block.dart`, `lib/features/exporter/presentation/card_canvas.dart`, `test/features/code_highlight_test.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for highlighting; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-18 — Task 2.3: Keyboard formatting toolbar + live markdown styling
+- Pure `MarkdownFormatter` in `lib/features/scratchpad/state/markdown_formatter.dart` (no Flutter imports) wraps/toggles tokens around a selection or caret:
+  - Bold `**` / italic `*` / inline `` `code` ``, with unwrap-on-second-tap; italic will not steal a surrounding `**` pair.
+  - Header cycles the current line through `# `, `## `, `### `, then body text.
+  - Bullet / quote toggle `- ` and `> ` at line start.
+  - Multi-line selections become fenced ` ``` ` blocks.
+  - `+ Slide` inserts `\n\n---\n\n` (carousel thematic break) and leaves the caret after the divider.
+- `StyledMarkdownEditingController` paints the raw markdown buffer live: H1 24sp/w700, H2 20sp/w600, bold/italic/quote/code, fenced blocks in monospace with a tinted fill, `---` / `___` as a struck divider rule. Markers (`**`, `#`, `` ` ``) render at 35% opacity. Span text is 1:1 with the stored buffer.
+- `FormattingToolbar` docks above the export/status stack (rides the keyboard via `resizeToAvoidBottomInset`). Horizontal accessory: **B**, **I**, **H**, **•=**, **”**, **</>**, plus a filled **+ Slide** chip. Every tap fires `HapticFeedback.selectionClick()` and writes `controller.selection` from the formatter result. `ExcludeFocus` keeps the software keyboard up.
+- `ScratchpadScreen` uses the styled controller and forwards toolbar edits through `scratchpadProvider.updateContent` so Hive auto-save still runs.
+- Tests: `test/features/formatting_toolbar_test.dart` — wrap/unwrap/cycle unit cases; Bold tap wraps the exact selection; + Slide inserts `\n\n---\n\n`; `buildTextSpan` applies `FontWeight.bold` to `**bold**` content while dimming markers. `flutter test` 201 passed; `flutter analyze lib test` clean.
+- Modified: `lib/features/scratchpad/state/markdown_formatter.dart`, `lib/features/scratchpad/presentation/{styled_markdown_controller,formatting_toolbar,scratchpad_screen}.dart`, `test/features/formatting_toolbar_test.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for the editor chrome; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-18 — Task 3.6: Rich markdown cards + auto-scaling type
+- Hardened `CarouselDeck.fromMarkdown` divider regex to match LF / CRLF / CR and `---`, `***`, `___` (3+ markers) without swallowing consecutive rules. Slides are trimmed; empty segments dropped. The 3-slide mixed-newline fixture now splits into exactly 3 cards.
+- `MarkdownCardContent` renders H1–H3, bold, italic, blockquotes (accent left rule), `•` lists, and inline code as widgets so `#`, `**`, and `>` never paint on the canvas. Fenced blocks still embed via `SyntaxCardBlock`.
+- Dropped the 280-character Twitter overflow warning. `CardLayout.fontScaleFor` scales punchy copy 1.25×, standard posts 1.0×, long-form 0.82× (dense 0.7×), left-aligned with 64×48 padding on the 1080px canvas and a FittedBox clip guard.
+- Tests: `test/features/card_typography_test.dart` — marker stripping, 3-slide split, scale buckets. Existing rasterizer overflow case now asserts the warning is gone. `flutter test` 211 passed; `flutter analyze lib test` clean.
+- Modified: `lib/features/exporter/models/carousel_deck.dart`, `lib/features/exporter/templates/card_theme_config.dart`, `lib/features/exporter/presentation/{markdown_card_content,card_canvas,card_exporter_screen}.dart`, `test/features/{card_typography_test,card_rasterizer_test,carousel_deck_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for card typography; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-18 — Task 2.4: Multi-draft drawer + settings
+- Hive `drafts_box` now stores many `Draft` documents (`id`, `title`, `content`, `createdAt`, `updatedAt`) under `draft:<id>` keys, with `__active_id__` pointing at the editor buffer. Schema v2 migrates the legacy single-doc keys (`id` / `content` / `updatedAt`) on first access so existing scratchpad text is kept.
+- Auto-title from the first non-empty line (`# Heading`, `**Bold Title**`, or plain text) with markdown tokens stripped; empty buffers use `Untitled Draft`. Active draft still auto-saves on the 400ms debounce.
+- `draftListProvider` + `scratchpadProvider.activeDraftId`: switching flushes the pending write, loads the selected draft, and refreshes word/slide stats. New Post creates a blank Hive document and focuses the editor.
+- `DraftsDrawer`: SocialSlate header + count, pinned New Post, search, title/preview/relative-time/word/slide badges, active accent, swipe-to-delete with a confirmation dialog. App bar title is the current draft (tap to rename).
+- `SettingsBottomSheet`: default author name / handle / avatar shortcut (`cardSettingsProvider`, `settings_box`), Pro Active badge or paywall CTA, Restore Purchases, Terms / Privacy, version `1.0.0`. Card export now stamps the saved author handle.
+- Tests: `test/features/draft_storage_test.dart` — CRUD, auto-titling, legacy migration, timestamped switching, drawer/settings widgets. `flutter test` 228 passed; `flutter analyze lib test` clean.
+- Modified: `lib/core/persistence/{draft_storage,settings_storage}.dart`, `lib/features/scratchpad/{state/draft_list_notifier,state/draft_presentation,state/scratchpad_state,state/scratchpad_notifier,presentation/drafts_drawer,presentation/settings_bottom_sheet,presentation/scratchpad_screen,presentation/export_toolbar}.dart`, `lib/features/exporter/state/card_settings.dart`, `lib/main.dart`, `test/features/{draft_storage_test,scratchpad_state_test,export_actions_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-18 — Task 4.2: Store branding, offline legal, icons, ProGuard
+- Display name is **SocialSlate** everywhere users see it: `MaterialApp.title`, iOS `CFBundleDisplayName` / `CFBundleName`, Android `android:label`. Bundle IDs left as `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android) so existing RevenueCat / store product mapping is not silently retargeted.
+- Brand mark: slate `#0F172A` field with a geometric **S** glyph in `assets/icon/` (`app_icon.svg` + 1024px PNGs). `flutter_launcher_icons` and `flutter_native_splash` write native mipmaps, adaptive icons, and a dark splash so launch no longer flashes white.
+- Offline legal: `assets/legal/privacy_policy.md` and `terms_of_service.md` are bundled Flutter assets. Privacy states no accounts, Hive-local drafts, on-device images, zero telemetry, and anonymous Apple/Google receipt checks via RevenueCat. Terms cover the $4.99 one-time non-consumable lifetime unlock, offline use, and limitation of liability.
+- `LegalDocumentViewer` (`flutter_markdown`) opens from Settings and the paywall sheet. Hosted `cleancanvas.app` URLs were removed from `RevenueCatConfig`.
+- Android release: `isMinifyEnabled` + `isShrinkResources` with `android/app/proguard-rules.pro` keep rules for Hive adapters, `com.revenuecat.purchases.**`, and Play Billing.
+- Tests: `test/features/legal_documents_test.dart` — asset wording, in-app viewer, Settings wiring, `MaterialApp.title`. `flutter analyze lib test` clean; `flutter test` 235 passed.
+- Release APK: `flutter build apk --split-per-abi` succeeded with R8 (armeabi-v7a 21.2MB, arm64-v8a 23.8MB, x86_64 25.5MB). Local JDK 17 (`flutter config --jdk-dir` → Temurin 17) was required; Gradle was otherwise launching a Java 8 VM.
+- Modified: `pubspec.yaml`, `lib/main.dart`, `lib/core/config/revenue_cat_config.dart`, `lib/features/scratchpad/presentation/{legal_document_viewer,settings_bottom_sheet}.dart`, `lib/features/paywall/paywall_bottom_sheet.dart`, `assets/icon/*`, `assets/legal/*`, `android/app/{build.gradle.kts,proguard-rules.pro,src/main/AndroidManifest.xml}` plus generated splash/icon resources, `ios/Runner/{Info.plist,Assets.xcassets,Base.lproj/LaunchScreen.storyboard}`, `test/features/legal_documents_test.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: replace RevenueCat placeholder keys; attach a Play/App Store signing config (release still uses the debug keystore); `flutter_markdown` is discontinued on pub.dev (`flutter_markdown_plus` successor) but kept as specified.
+
+### 2026-09-19 — Rebrand to PenningPal
+- Official product name is **PenningPal**. Working titles Clean Canvas / SocialSlate are retired from user-facing copy.
+- Native display names: iOS `CFBundleDisplayName` / `CFBundleName`, Android `android:label`, web `<title>` / PWA `name` / `short_name`, plus macOS / Linux / Windows window titles.
+- In-app: `MaterialApp.title`, drafts drawer header, paywall / settings unlock copy (“Unlock PenningPal Pro”), version line, card watermark `Made with PenningPal`, author fallback, Photos album name.
+- Legal: `assets/legal/privacy_policy.md` and `terms_of_service.md` now name PenningPal. iOS photo-library usage strings updated to English PenningPal copy.
+- Docs/rules: `.cursor/rules/00-project.mdc`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md` title + Active State, `README.md`.
+- Bundle IDs and Dart package name stay `com.cleancanvas.*` / `clean_canvas` so RevenueCat and store product mapping are unchanged. Git remote remains `BCuracao/SocialSlate`.
+- Tests updated for display name, paywall headline, drawer brand, watermark fallback, and share text.
+- Modified: `ios/Runner/Info.plist`, `android/app/src/main/AndroidManifest.xml`, `web/{index.html,manifest.json}`, `macos/Runner/Configs/AppInfo.xcconfig`, `linux/runner/my_application.cc`, `windows/runner/{main.cpp,Runner.rc}`, `lib/main.dart`, `lib/features/{scratchpad/presentation/{drafts_drawer,settings_bottom_sheet},paywall/paywall_bottom_sheet,exporter/{presentation/card_canvas,templates/card_theme_config,render/card_export_service}}.dart`, `assets/legal/*`, `assets/icon/app_icon.svg`, tests, `docs/ARCHITECTURE.md`, `.cursor/rules/00-project.mdc`, `README.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for naming; still replace RevenueCat placeholder keys before store shipping.

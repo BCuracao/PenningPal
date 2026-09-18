@@ -83,22 +83,6 @@ void main() {
       expect(CardAspectRatio.story.height, 1920);
     });
 
-    test('soft character limits flag overflow', () {
-      expect(CardAspectRatio.square.exceedsSoftLimit('short'), isFalse);
-      expect(
-        CardAspectRatio.square.exceedsSoftLimit('x' * 281),
-        isTrue,
-      );
-      expect(
-        CardAspectRatio.story.exceedsSoftLimit('x' * 280),
-        isFalse,
-      );
-      expect(
-        CardAspectRatio.story.exceedsSoftLimit('x' * 641),
-        isTrue,
-      );
-    });
-
     test('font size shrinks as the draft grows', () {
       expect(
         CardLayout.fontSizeFor('Hi', CardAspectRatio.square),
@@ -269,7 +253,7 @@ void main() {
       );
     }
 
-    testWidgets('preview, aspect switch, templates, and overflow meter', (
+    testWidgets('preview, aspect switch, templates, and character meter', (
       tester,
     ) async {
       const draft = 'A short quote for the card.';
@@ -286,8 +270,9 @@ void main() {
       expect(find.byType(CardCanvas), findsOneWidget);
       expect(find.byKey(const Key('card-preview')), findsOneWidget);
       expect(find.text(draft), findsOneWidget);
-      expect(find.text('Teilen'), findsOneWidget);
-      expect(find.text('In Fotos sichern'), findsOneWidget);
+      expect(find.text('Share Image'), findsOneWidget);
+      expect(find.text('Save Image'), findsOneWidget);
+      expect(find.byKey(const Key('card-char-meter')), findsOneWidget);
       expect(find.byKey(const Key('card-overflow-warning')), findsNothing);
 
       await tester.tap(find.byKey(const Key('card-aspect-story')));
@@ -303,7 +288,7 @@ void main() {
       expect(find.byKey(const Key('terminal-traffic-lights')), findsOneWidget);
     });
 
-    testWidgets('shows a length warning when the draft exceeds capacity', (
+    testWidgets('long drafts do not show a 280-character overflow warning', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -316,11 +301,12 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.byKey(const Key('card-overflow-warning')), findsOneWidget);
+      expect(find.byKey(const Key('card-overflow-warning')), findsNothing);
       expect(find.byKey(const Key('card-char-meter')), findsOneWidget);
+      expect(find.textContaining('400 characters'), findsOneWidget);
     });
 
-    testWidgets('Teilen rasterizes via the provided rasterizer', (
+    testWidgets('Share Image rasterizes via the provided rasterizer', (
       tester,
     ) async {
       final rasterizer = _FakeRasterizer();
@@ -369,7 +355,11 @@ class _NoopExportService extends CardExportService {
   }) async {}
 
   @override
-  Future<bool> saveToGallery(Uint8List byteData, {String? albumName}) async {
+  Future<bool> saveToGallery(
+    Uint8List byteData, {
+    String? albumName,
+    String? filename,
+  }) async {
     return true;
   }
 }

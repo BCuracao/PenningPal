@@ -102,7 +102,7 @@ void main() {
     }) async {
       final storage = DraftStorage();
       if (draft.isNotEmpty) {
-        await storage.saveDraft(draft);
+        await storage.createDraft(initialContent: draft);
       }
 
       await tester.pumpWidget(
@@ -238,8 +238,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Teilen'), findsOneWidget);
-      expect(find.text('In Fotos sichern'), findsOneWidget);
+      expect(find.text('Share Image'), findsOneWidget);
+      expect(find.text('Save Image'), findsOneWidget);
     });
 
     testWidgets('amber indicator appears when the draft exceeds the X limit', (

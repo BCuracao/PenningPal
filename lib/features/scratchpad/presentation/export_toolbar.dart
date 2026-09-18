@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../exporter/presentation/card_exporter_screen.dart';
+import '../../exporter/state/card_settings.dart';
 import '../state/scratchpad_notifier.dart';
 import 'export_actions.dart';
 
@@ -144,9 +145,10 @@ class ExportToolbar extends ConsumerWidget {
 
   void _openCardExporter(BuildContext context, WidgetRef ref) {
     final draft = ref.read(scratchpadProvider).content;
+    final author = ref.read(cardSettingsProvider).formattedAuthor;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CardExporterScreen(text: draft),
+        builder: (_) => CardExporterScreen(text: draft, author: author),
       ),
     );
   }

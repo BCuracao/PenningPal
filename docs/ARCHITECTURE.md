@@ -1,4 +1,4 @@
-# Clean Canvas — Architecture Specification
+# PenningPal — Architecture Specification
 
 ## 1. High-Level Principles
 * **Pure Offline Execution**: No external network dependencies, APIs, or authentication backends.
@@ -19,8 +19,8 @@ lib/
 │   └── persistence/            # Hive box wrappers & storage schemas
 ├── features/
 │   ├── scratchpad/             # Main drafting screen & editor controls
-│   │   ├── presentation/       # Scratchpad UI, action bars, counters
-│   │   └── state/              # Editor state, undo/redo, debouncing
+│   │   ├── presentation/       # Scratchpad UI, formatting bar, styled editor
+│   │   └── state/              # Editor state, markdown format actions, debounce
 │   ├── exporter/               # Visual carousel & quote card generator
 │   │   ├── presentation/       # Card preview modal, aspect-ratio toggles
 │   │   ├── render/             # Off-screen RepaintBoundary rasterizer
@@ -59,15 +59,20 @@ lib/
 * Implements fallback rules so unsupported characters (symbols, punctuation, non-Latin alphabets) bypass conversion safely without throwing exceptions.
 
 ### 4.2. Local Storage (`lib/core/persistence/`)
-* Single Hive box (`drafts_box`) storing lightweight documents:
+* Hive box `drafts_box` stores one document per draft (never synced):
   ```dart
   class Draft {
     final String id;
+    final String title;
     final String content;
+    final DateTime createdAt;
     final DateTime updatedAt;
   }
   ```
-* UI updates are non-blocking: writes run asynchronously on a 400ms debounce timer.
+* Schema v2 keys are `draft:<id>` maps plus `__active_id__`. A one-time migration lifts the legacy single-document keys (`id` / `content` / `updatedAt`) into a real `Draft` so existing buffers are not lost.
+* Titles are inferred from the first non-empty line (heading / bold / plain text, markdown tokens stripped) and fall back to `"Untitled Draft"`.
+* UI updates are non-blocking: writes run asynchronously on a 400ms debounce timer against the active draft.
+* Author profile (name, handle, avatar shortcut) lives in a separate on-device `settings_box` and is read by `cardSettingsProvider`.
 
 ### 4.3. Visual Card Exporter (`lib/features/exporter/`)
 * **Off-Screen Rendering**: Cards are rendered in an off-screen widget tree attached to a detached `RenderRepaintBoundary` or via an invisible overlay.
@@ -75,8 +80,24 @@ lib/
   * Square: 1080 × 1080 px
   * Vertical: 1080 × 1920 px
 * **Rasterization Process**: Card widgets are scaled using `Transform.scale` to ensure consistent rendering metrics regardless of physical device DPI, rasterized to `dart:ui.Image`, and converted to PNG byte arrays.
+* **Carousel Decks**: Scratchpad drafts split on markdown thematic breaks (`---`, `***`, `___`, 3+ markers) across LF / CRLF / CR. Batch export presents each slide sequentially off-screen at identical dimensions and DPI, then shares or saves every PNG together. Watermark / Pro gating is applied per slide via `isProPurchased`.
+* **Rich Card Typography**: `MarkdownCardContent` paints headings, emphasis, blockquotes, lists, and inline code as widgets — raw `#` / `**` / `>` never appear on the canvas. Fenced blocks still go through `SyntaxCardBlock`. Type scale is `CardLayout.fontScaleFor` (1.25× / 1.0× / 0.82× / 0.7× by character length) with a FittedBox clip guard; there is no 280-character tweet cap.
+* **Code Cards**: Fenced markdown (` ```[lang] `) is parsed on-device into prose + code segments. `SyntaxCardBlock` paints JetBrains Mono with Atom One Dark (Terminal / Midnight) or GitHub Light (Minimal); unknown or missing language tags fall back to plain monospace. Highlighting uses bundled `flutter_highlight` / `highlight` — no network.
 
 ### 4.4. Entitlement Gating (`lib/features/paywall/`)
 * State tracked via a single reactive boolean: `isProPurchased`.
 * Checks RevenueCat cache on launch (`CustomerInfo.entitlements['pro_access']?.isActive`).
 * Hard enforcement: The export render pipeline intercepts attempts to rasterize custom themes or strip watermarks if `isProPurchased == false`.
+
+### 4.5. Scratchpad Editor (`lib/features/scratchpad/`)
+* **Raw buffer invariant**: The Hive draft and `TextEditingController.text` stay standard markdown. Visual styling never rewrites tokens into Unicode or HTML.
+* **`MarkdownFormatter`**: Pure Dart wrap/toggle helpers (bold, italic, heading cycle, bullet, quote, inline vs fenced code, `\n\n---\n\n` slide breaks) with no Flutter imports.
+* **`StyledMarkdownEditingController`**: Overrides `buildTextSpan` so headings, emphasis, quotes, fenced code, and thematic breaks paint live in the TextField. Syntax markers (`**`, `#`, `` ` ``) stay visible at ~35% opacity.
+* **`FormattingToolbar`**: Keyboard accessory above the export/status stack. Taps apply formatter results and restore `TextSelection` so the caret never jumps. `+ Slide` inserts a carousel divider with haptic feedback.
+* **Drafts drawer**: Hamburger opens a local workspace (`DraftsDrawer`) with New Post, search, swipe-to-delete (confirmation required), and a Settings & Profile footer. Switching drafts flushes the 400ms debounce, then loads the selected buffer into the editor.
+* **Settings sheet**: Default author profile (synced with `cardSettingsProvider`), Pro status / restore purchases, and Terms / Privacy / version. Privacy Policy and Terms of Service are bundled markdown assets under `assets/legal/` and open in `LegalDocumentViewer` — no hosted web page is required.
+
+### 4.6. Store Identity & Release
+* Display name is **PenningPal** (`MaterialApp.title`, iOS `CFBundleDisplayName` / `CFBundleName`, Android `android:label`). Package IDs remain `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android).
+* Launcher icons and native splash are generated from `assets/icon/` (`#0F172A` slate field, geometric **S** glyph) via `flutter_launcher_icons` and `flutter_native_splash`.
+* Android release builds enable R8/ProGuard (`android/app/proguard-rules.pro`) with keep rules for Hive adapters, RevenueCat, and Play Billing.

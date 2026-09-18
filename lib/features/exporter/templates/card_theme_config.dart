@@ -3,16 +3,10 @@ import 'package:flutter/material.dart';
 /// Social-export canvas size. Layout is always these logical pixels so
 /// rasterization is independent of device screen size and DPI.
 enum CardAspectRatio {
-  square(1080, 1080, '1:1 Square', 280, 14),
-  story(1080, 1920, '9:16 Story', 640, 28);
+  square(1080, 1080, '1:1 Square'),
+  story(1080, 1920, '9:16 Story');
 
-  const CardAspectRatio(
-    this.width,
-    this.height,
-    this.label,
-    this.softCharLimit,
-    this.maxLines,
-  );
+  const CardAspectRatio(this.width, this.height, this.label);
 
   /// Target canvas width in logical pixels (always 1080).
   final double width;
@@ -23,15 +17,7 @@ enum CardAspectRatio {
   /// Segmented-control label.
   final String label;
 
-  /// Soft character budget before the live overflow warning appears.
-  final int softCharLimit;
-
-  /// Max lines painted on the canvas (extra text fades).
-  final int maxLines;
-
   Size get size => Size(width, height);
-
-  bool exceedsSoftLimit(String text) => text.trim().length > softCharLimit;
 }
 
 /// Visual identity of a card template. Pure presentation config — no state.
@@ -198,25 +184,37 @@ abstract final class CardPresets {
 
 /// Padding and type scale used by [CardCanvas] at the fixed 1080px width.
 abstract final class CardLayout {
-  static const double padding = 96;
+  /// Horizontal inset on the 1080px canvas.
+  static const double padding = 64;
+
+  /// Vertical inset on the 1080px canvas.
+  static const double verticalPadding = 48;
   static const double headerHeight = 88;
   static const double footerHeight = 72;
-  static const String watermarkLabel = 'Made with Clean Canvas';
+  static const String watermarkLabel = 'Made with PenningPal';
+
+  static const double punchyScale = 1.25;
+  static const double standardScale = 1.0;
+  static const double longFormScale = 0.82;
+  static const double denseScale = 0.7;
 
   static double contentWidth(CardAspectRatio ratio) =>
       ratio.width - (padding * 2);
 
-  static double fontSizeFor(String text, CardAspectRatio ratio) {
+  /// Dynamic type multiplier from slide character length.
+  ///
+  /// Short quotes scale up so they fill the canvas; long-form copy scales
+  /// down so it stays unclipped without a 280-character tweet cap.
+  static double fontScaleFor(String text) {
     final length = text.trim().length;
-    if (ratio == CardAspectRatio.square) {
-      if (length < 80) return 56;
-      if (length < 180) return 44;
-      if (length < 320) return 36;
-      return 30;
-    }
-    if (length < 120) return 64;
-    if (length < 280) return 48;
-    if (length < 500) return 40;
-    return 34;
+    if (length < 120) return punchyScale;
+    if (length < 350) return standardScale;
+    if (length <= 650) return longFormScale;
+    return denseScale;
+  }
+
+  static double fontSizeFor(String text, CardAspectRatio ratio) {
+    final base = ratio == CardAspectRatio.square ? 36.0 : 42.0;
+    return base * fontScaleFor(text);
   }
 }

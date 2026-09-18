@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../models/carousel_deck.dart';
+import '../render/code_block_parser.dart';
 import '../templates/card_theme_config.dart';
+import 'markdown_card_content.dart';
+import 'syntax_card_block.dart';
 
 /// Fixed-size social card. Stateless: every pixel is derived from props.
 ///
@@ -17,6 +20,8 @@ class CardCanvas extends StatelessWidget {
     required this.theme,
     this.author,
     this.isProPurchased = false,
+    this.currentSlideIndex,
+    this.totalSlides,
   });
 
   /// Key attached to the [RepaintBoundary] — not this widget.
@@ -30,6 +35,12 @@ class CardCanvas extends StatelessWidget {
   /// Reactive entitlement. When `false`, the watermark is forced on regardless
   /// of [CardThemeConfig.showWatermark] so UI state cannot bypass the gate.
   final bool isProPurchased;
+
+  /// Zero-based index of this slide when rendering a carousel.
+  final int? currentSlideIndex;
+
+  /// Total slides in the deck. A badge is shown when this is greater than 1.
+  final int? totalSlides;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +57,9 @@ class CardCanvas extends StatelessWidget {
           : null,
     );
 
+    final showPagination = totalSlides != null && totalSlides! > 1;
+    final slideIndex = currentSlideIndex ?? 0;
+
     return RepaintBoundary(
       key: canvasKey,
       child: SizedBox(
@@ -54,19 +68,36 @@ class CardCanvas extends StatelessWidget {
         height: aspectRatio.height,
         child: DecoratedBox(
           decoration: decoration,
-          child: gatedTheme.variant == CardTemplateVariant.terminal
-              ? _TerminalCard(
-                  theme: gatedTheme,
-                  aspectRatio: aspectRatio,
-                  text: body,
-                  author: author,
-                )
-              : _PlainCard(
-                  theme: gatedTheme,
-                  aspectRatio: aspectRatio,
-                  text: body,
-                  author: author,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: gatedTheme.variant == CardTemplateVariant.terminal
+                    ? _TerminalCard(
+                        theme: gatedTheme,
+                        text: body,
+                        author: author,
+                      )
+                    : _PlainCard(
+                        theme: gatedTheme,
+                        text: body,
+                        author: author,
+                      ),
+              ),
+              if (showPagination)
+                Positioned(
+                  top: CardLayout.verticalPadding + 16,
+                  right: CardLayout.padding * 0.55,
+                  child: _PaginationBadge(
+                    label: CarouselDeck.formatPagination(
+                      slideIndex,
+                      totalSlides!,
+                    ),
+                    foreground: gatedTheme.textColor,
+                    fontFamily: gatedTheme.fontFamily,
+                  ),
                 ),
+            ],
+          ),
         ),
       ),
     );
@@ -76,28 +107,25 @@ class CardCanvas extends StatelessWidget {
 class _PlainCard extends StatelessWidget {
   const _PlainCard({
     required this.theme,
-    required this.aspectRatio,
     required this.text,
     required this.author,
   });
 
   final CardThemeConfig theme;
-  final CardAspectRatio aspectRatio;
   final String text;
   final String? author;
 
   @override
   Widget build(BuildContext context) {
     final handle = author?.trim();
-    final fontSize = CardLayout.fontSizeFor(text, aspectRatio);
     final muted = theme.textColor.withValues(alpha: 0.42);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         CardLayout.padding,
-        CardLayout.padding * 0.85,
+        CardLayout.verticalPadding,
         CardLayout.padding,
-        CardLayout.padding * 0.75,
+        CardLayout.verticalPadding,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -107,11 +135,11 @@ class _PlainCard extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                (handle != null && handle.isNotEmpty) ? handle : 'Clean Canvas',
+                (handle != null && handle.isNotEmpty) ? handle : 'PenningPal',
                 key: const Key('card-brand-slot'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: _cardFont(
+                style: cardTypeStyle(
                   fontFamily: theme.fontFamily,
                   color: theme.accentColor,
                   fontSize: 28,
@@ -123,23 +151,12 @@ class _PlainCard extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Align(
-              alignment: Alignment.center,
-              child: Text(
-                text.isEmpty ? 'Start writing…' : text,
-                key: const Key('card-body-text'),
-                textAlign: TextAlign.center,
-                maxLines: aspectRatio.maxLines,
-                overflow: TextOverflow.fade,
-                style: _cardFont(
-                  fontFamily: theme.fontFamily,
-                  color: text.isEmpty ? muted : theme.textColor,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
-                  letterSpacing: -0.4,
-                ),
-              ),
+            child: _SlideBody(
+              text: text,
+              theme: theme,
+              showCodeChrome: false,
+              chromeTitle: handle,
+              emptyColor: muted,
             ),
           ),
           if (theme.showWatermark)
@@ -152,7 +169,7 @@ class _PlainCard extends StatelessWidget {
                   key: const Key('card-watermark'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _cardFont(
+                  style: cardTypeStyle(
                     fontFamily: theme.fontFamily,
                     color: muted,
                     fontSize: 22,
@@ -172,30 +189,28 @@ class _PlainCard extends StatelessWidget {
 class _TerminalCard extends StatelessWidget {
   const _TerminalCard({
     required this.theme,
-    required this.aspectRatio,
     required this.text,
     required this.author,
   });
 
   final CardThemeConfig theme;
-  final CardAspectRatio aspectRatio;
   final String text;
   final String? author;
 
   @override
   Widget build(BuildContext context) {
-    final fontSize = CardLayout.fontSizeFor(text, aspectRatio);
-    final comment = const Color(0xFF6A9955);
-    final stringColor = const Color(0xFFCE9178);
     final muted = theme.textColor.withValues(alpha: 0.45);
     final title = (author != null && author!.trim().isNotEmpty)
         ? author!.trim()
         : theme.chromeTitle;
+    final parsed = const CodeBlockParser().parse(text);
+    final useCodeWindow = parsed.hasCode;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _TerminalChrome(title: title, accent: theme.accentColor),
+        if (!useCodeWindow)
+          _TerminalChrome(title: title, accent: theme.accentColor),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -204,31 +219,13 @@ class _TerminalCard extends StatelessWidget {
               CardLayout.padding,
               32,
             ),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Text.rich(
-                TextSpan(
-                  children: _syntaxSpans(
-                    text.isEmpty ? '// Start writing…' : text,
-                    base: text.isEmpty ? muted : theme.textColor,
-                    comment: comment,
-                    stringColor: stringColor,
-                    accent: theme.accentColor,
-                  ),
-                ),
-                key: const Key('card-body-text'),
-                textAlign: TextAlign.left,
-                maxLines: aspectRatio.maxLines,
-                overflow: TextOverflow.fade,
-                style: _cardFont(
-                  fontFamily: theme.fontFamily,
-                  color: theme.textColor,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w400,
-                  height: 1.45,
-                  letterSpacing: 0,
-                ),
-              ),
+            child: _SlideBody(
+              text: text,
+              theme: theme,
+              showCodeChrome: useCodeWindow,
+              chromeTitle: title,
+              emptyColor: muted,
+              parsed: parsed,
             ),
           ),
         ),
@@ -238,14 +235,14 @@ class _TerminalCard extends StatelessWidget {
               CardLayout.padding,
               0,
               CardLayout.padding,
-              CardLayout.padding * 0.6,
+              CardLayout.verticalPadding * 0.6,
             ),
             child: Text(
               CardLayout.watermarkLabel,
               key: const Key('card-watermark'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: _cardFont(
+              style: cardTypeStyle(
                 fontFamily: theme.fontFamily,
                 color: muted,
                 fontSize: 20,
@@ -282,7 +279,7 @@ class _TerminalChrome extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: _cardFont(
+                  style: cardTypeStyle(
                     fontFamily: CardThemeConfig.fontJetBrainsMono,
                     color: accent.withValues(alpha: 0.85),
                     fontSize: 26,
@@ -319,6 +316,160 @@ class _TrafficLights extends StatelessWidget {
   }
 }
 
+class _PaginationBadge extends StatelessWidget {
+  const _PaginationBadge({
+    required this.label,
+    required this.foreground,
+    required this.fontFamily,
+  });
+
+  final String label;
+  final Color foreground;
+  final String fontFamily;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: foreground.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: foreground.withValues(alpha: 0.28),
+          width: 2,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Text(
+          label,
+          key: const Key('card-pagination-badge'),
+          maxLines: 1,
+          style: cardTypeStyle(
+            fontFamily: fontFamily,
+            color: foreground.withValues(alpha: 0.78),
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.6,
+            height: 1.1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Prose via [MarkdownCardContent], fenced code via [SyntaxCardBlock].
+/// Typography scales from the full slide length; FittedBox is the clip guard.
+class _SlideBody extends StatelessWidget {
+  const _SlideBody({
+    required this.text,
+    required this.theme,
+    required this.showCodeChrome,
+    required this.emptyColor,
+    this.chromeTitle,
+    this.parsed,
+  });
+
+  final String text;
+  final CardThemeConfig theme;
+  final bool showCodeChrome;
+  final String? chromeTitle;
+  final Color emptyColor;
+  final ParsedCardContent? parsed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = CardLayout.fontScaleFor(text);
+    final segments = parsed ?? const CodeBlockParser().parse(text);
+
+    if (text.trim().isEmpty) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Start writing…',
+          key: const Key('card-body-text'),
+          textAlign: TextAlign.left,
+          style: cardTypeStyle(
+            fontFamily: theme.fontFamily,
+            color: emptyColor,
+            fontSize: 22 * scale,
+            fontWeight: FontWeight.w500,
+            height: 1.45,
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final children = <Widget>[];
+        if (segments.isEmpty) {
+          children.add(
+            MarkdownCardContent(
+              content: text,
+              theme: theme,
+              fontScale: scale,
+              fontFamily: theme.fontFamily,
+            ),
+          );
+        } else {
+          for (var i = 0; i < segments.segments.length; i++) {
+            final segment = segments.segments[i];
+            final isLast = i == segments.segments.length - 1;
+            if (segment is ProseSegment) {
+              children.add(
+                Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 28),
+                  child: MarkdownCardContent(
+                    content: segment.text,
+                    theme: theme,
+                    fontScale: scale,
+                    fontFamily: theme.fontFamily,
+                  ),
+                ),
+              );
+            } else if (segment is CodeBlockSegment) {
+              children.add(
+                Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 28),
+                  child: SyntaxCardBlock(
+                    code: segment.code,
+                    language: segment.language,
+                    theme: theme,
+                    showWindowChrome: showCodeChrome,
+                    chromeTitle: chromeTitle ?? segment.language,
+                    maxWidth: constraints.maxWidth,
+                  ),
+                ),
+              );
+            }
+          }
+        }
+
+        return Align(
+          alignment: Alignment.topLeft,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: SizedBox(
+                width: constraints.maxWidth,
+                child: Column(
+                  key: const Key('card-body-text'),
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: children,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _TrafficDot extends StatelessWidget {
   const _TrafficDot({required this.color});
 
@@ -330,76 +481,6 @@ class _TrafficDot extends StatelessWidget {
       width: 20,
       height: 20,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
-
-List<InlineSpan> _syntaxSpans(
-  String text, {
-  required Color base,
-  required Color comment,
-  required Color stringColor,
-  required Color accent,
-}) {
-  final lines = text.split('\n');
-  final spans = <InlineSpan>[];
-  for (var i = 0; i < lines.length; i++) {
-    final line = lines[i];
-    final suffix = i == lines.length - 1 ? '' : '\n';
-    final trimmed = line.trimLeft();
-    if (trimmed.startsWith('#') ||
-        trimmed.startsWith('//') ||
-        trimmed.startsWith('/*')) {
-      spans.add(TextSpan(
-        text: '$line$suffix',
-        style: TextStyle(color: comment),
-      ));
-    } else if (trimmed.startsWith('\$') || trimmed.startsWith('>')) {
-      spans.add(TextSpan(
-        text: '$line$suffix',
-        style: TextStyle(color: accent),
-      ));
-    } else if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-      spans.add(TextSpan(
-        text: '$line$suffix',
-        style: TextStyle(color: stringColor),
-      ));
-    } else {
-      spans.add(TextSpan(
-        text: '$line$suffix',
-        style: TextStyle(color: base),
-      ));
-    }
-  }
-  return spans;
-}
-
-TextStyle _cardFont({
-  required String fontFamily,
-  required Color color,
-  required double fontSize,
-  FontWeight fontWeight = FontWeight.w400,
-  double height = 1.4,
-  double? letterSpacing,
-}) {
-  final base = TextStyle(
-    color: color,
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    height: height,
-    letterSpacing: letterSpacing,
-  );
-  try {
-    if (fontFamily == CardThemeConfig.fontJetBrainsMono) {
-      return GoogleFonts.jetBrainsMono(textStyle: base);
-    }
-    return GoogleFonts.inter(textStyle: base);
-  } catch (_) {
-    return base.copyWith(
-      fontFamily: fontFamily == CardThemeConfig.fontJetBrainsMono
-          ? 'monospace'
-          : null,
     );
   }
 }

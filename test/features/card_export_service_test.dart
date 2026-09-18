@@ -205,10 +205,10 @@ void main() {
         },
       );
 
-      await service.shareCardImage(png, text: 'Made with Clean Canvas');
+      await service.shareCardImage(png, text: 'Made with PenningPal');
       expect(shared, hasLength(1));
       expect(shared.single.mimeType, 'image/png');
-      expect(sharedText, 'Made with Clean Canvas');
+      expect(sharedText, 'Made with PenningPal');
       expect(File(shared.single.path).existsSync(), isTrue);
       expect(await File(shared.single.path).readAsBytes(), png);
     });
@@ -245,7 +245,7 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('Teilen captures PNG bytes and shares them', (tester) async {
+    testWidgets('Share Image captures PNG bytes and shares them', (tester) async {
       final rasterizer = _FakeRasterizer();
       final export = RecordingExportService();
       await pumpExporter(
@@ -264,7 +264,7 @@ void main() {
       expect(export.saves, isEmpty);
     });
 
-    testWidgets('In Fotos sichern saves and shows a confirmation toast',
+    testWidgets('Save Image saves and shows a confirmation toast',
         (tester) async {
       final rasterizer = _FakeRasterizer();
       final export = RecordingExportService();
@@ -381,7 +381,11 @@ class RecordingExportService extends CardExportService {
   }
 
   @override
-  Future<bool> saveToGallery(Uint8List byteData, {String? albumName}) async {
+  Future<bool> saveToGallery(
+    Uint8List byteData, {
+    String? albumName,
+    String? filename,
+  }) async {
     saves.add(byteData);
     return saveResult;
   }

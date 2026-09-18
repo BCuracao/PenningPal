@@ -179,7 +179,7 @@ void main() {
       await tester.tap(find.byKey(const Key('card-template-terminal')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Unlock SocialSlate Pro'), findsOneWidget);
+      expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
       expect(find.byKey(const Key('terminal-traffic-lights')), findsNothing);
       expect(find.byKey(const Key('paywall-unlock')), findsOneWidget);
       expect(find.byKey(const Key('paywall-restore')), findsOneWidget);
@@ -191,7 +191,7 @@ void main() {
       await tester.tap(find.byKey(const Key('remove-watermark-toggle')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Unlock SocialSlate Pro'), findsOneWidget);
+      expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
       expect(find.byKey(const Key('card-watermark')), findsOneWidget);
     });
 
@@ -208,7 +208,7 @@ void main() {
       await tester.pump();
 
       expect(find.byKey(const Key('terminal-traffic-lights')), findsOneWidget);
-      expect(find.text('Unlock SocialSlate Pro'), findsNothing);
+      expect(find.text('Unlock PenningPal Pro'), findsNothing);
     });
   });
 
@@ -253,7 +253,7 @@ void main() {
       await tester.tap(find.byKey(const Key('paywall-unlock')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Unlock SocialSlate Pro'), findsNothing);
+      expect(find.text('Unlock PenningPal Pro'), findsNothing);
       expect(service.hasProAccess, isTrue);
       expect(service.purchaseCount, 1);
     });
@@ -293,7 +293,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       await tester.pumpAndSettle();
-      expect(find.text('Unlock SocialSlate Pro'), findsNothing);
+      expect(find.text('Unlock PenningPal Pro'), findsNothing);
     });
   });
 }

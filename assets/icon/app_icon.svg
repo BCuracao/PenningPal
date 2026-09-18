@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="PenningPal">
+  <!-- Slate field; launcher PNG is rasterized from the DIN Alternate glyph. -->
+  <rect width="1024" height="1024" fill="#0F172A"/>
+  <path
+    fill="none"
+    stroke="#F8FAFC"
+    stroke-width="112"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M690 330
+       C690 250 620 210 512 210
+       C380 210 330 280 330 350
+       C330 470 690 470 690 620
+       C690 730 610 814 512 814
+       C390 814 334 750 334 690"/>
+</svg>

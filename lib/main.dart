@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'core/persistence/draft_storage.dart';
+import 'core/persistence/settings_storage.dart';
+import 'features/exporter/state/card_settings.dart';
 import 'features/paywall/paywall_provider.dart';
 import 'features/paywall/paywall_service.dart';
 import 'features/scratchpad/presentation/scratchpad_screen.dart';
@@ -13,6 +15,9 @@ Future<void> main() async {
   final drafts = DraftStorage();
   await drafts.init();
 
+  final settings = SettingsStorage();
+  await settings.init();
+
   final paywall = PaywallService();
   await paywall.initialize();
 
@@ -20,6 +25,7 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         draftStorageProvider.overrideWithValue(drafts),
+        settingsStorageProvider.overrideWithValue(settings),
         paywallServiceProvider.overrideWithValue(paywall),
       ],
       child: const CleanCanvasApp(),
@@ -39,7 +45,7 @@ class CleanCanvasApp extends ConsumerWidget {
     const ink = Color(0xFF2C2C2A);
 
     return MaterialApp(
-      title: 'Clean Canvas',
+      title: 'PenningPal',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

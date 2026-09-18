@@ -42,7 +42,7 @@ class CardExportService {
   });
 
   /// Album created in Photos when saving a card.
-  static const String defaultAlbumName = 'Clean Canvas';
+  static const String defaultAlbumName = 'PenningPal';
 
   /// Stable stem used when a caller-supplied filename is empty or illegal.
   static const String defaultFileStem = 'clean_canvas_card';
@@ -68,6 +68,16 @@ class CardExportService {
     String two(int value) => value.toString().padLeft(2, '0');
     return 'clean_canvas_${stamp.year}${two(stamp.month)}${two(stamp.day)}_'
         '${two(stamp.hour)}${two(stamp.minute)}${two(stamp.second)}.png';
+  }
+
+  /// Unique name for slide [index] (0-based) inside a carousel export.
+  static String generateSlideFilename({
+    required int index,
+    required int total,
+    DateTime? now,
+  }) {
+    final stamp = generateFilename(now: now).replaceFirst('.png', '');
+    return '${stamp}_slide_${index + 1}_of_$total.png';
   }
 
   /// Drops path components and illegal characters; always ends in `.png`.
@@ -126,14 +136,18 @@ class CardExportService {
   }
 
   /// Saves [byteData] to the gallery. Returns `false` on denial or failure.
-  Future<bool> saveToGallery(Uint8List byteData, {String? albumName}) async {
+  Future<bool> saveToGallery(
+    Uint8List byteData, {
+    String? albumName,
+    String? filename,
+  }) async {
     if (!isValidPngBytes(byteData)) return false;
     final album = albumName ?? defaultAlbumName;
     final toAlbum = album.isNotEmpty;
     try {
       final allowed = await _ensureGalleryAccess(toAlbum: toAlbum);
       if (!allowed) return false;
-      final name = _galleryName(generateFilename());
+      final name = _galleryName(filename ?? generateFilename());
       await _putBytes(byteData, album: album, name: name);
       return true;
     } on GalException {
@@ -141,6 +155,58 @@ class CardExportService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Writes each slide to temp storage and opens one share sheet for all.
+  Future<void> shareAllSlides(
+    List<Uint8List> slidesImages, {
+    String text = '',
+    Rect? sharePositionOrigin,
+  }) async {
+    if (slidesImages.isEmpty) return;
+    final files = <XFile>[];
+    final now = DateTime.now();
+    for (var i = 0; i < slidesImages.length; i++) {
+      final filename = generateSlideFilename(
+        index: i,
+        total: slidesImages.length,
+        now: now,
+      );
+      final file = await saveImageTemporarily(slidesImages[i], filename);
+      files.add(XFile(file.path, mimeType: 'image/png'));
+    }
+    final share = shareFiles ?? _shareXFiles;
+    await share(
+      files,
+      text: text,
+      sharePositionOrigin: sharePositionOrigin,
+    );
+  }
+
+  /// Saves each slide sequentially to the photo library.
+  ///
+  /// Returns the number of slides that landed in the gallery. Permission
+  /// denial or a corrupt buffer counts as an unsaved slide rather than a
+  /// throw.
+  Future<int> saveAllToGallery(
+    List<Uint8List> slidesImages, {
+    String? albumName,
+  }) async {
+    var saved = 0;
+    final now = DateTime.now();
+    for (var i = 0; i < slidesImages.length; i++) {
+      final ok = await saveToGallery(
+        slidesImages[i],
+        albumName: albumName,
+        filename: generateSlideFilename(
+          index: i,
+          total: slidesImages.length,
+          now: now,
+        ),
+      );
+      if (ok) saved += 1;
+    }
+    return saved;
   }
 
   /// Writes a temp PNG and opens the native share sheet.
