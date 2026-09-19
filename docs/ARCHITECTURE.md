@@ -46,6 +46,7 @@ lib/
       ├──> [ HTML Engine ]    ──> [ super_clipboard ]   ──> System Clipboard (Substack)
       │
       └──> [ Card Exporter ]  ──> [ RepaintBoundary ]   ──> Image Rasterizer ──> Native Share / Photos / PNG Clipboard
+                                                                                 └──> LinkedInPdfExporter (on-device PDF)
 ```
 
 ---
@@ -73,6 +74,7 @@ lib/
 * Titles are inferred from the first non-empty line (heading / bold / plain text, markdown tokens stripped) and fall back to `"Untitled Draft"`.
 * UI updates are non-blocking: writes run asynchronously on a 400ms debounce timer against the active draft.
 * Author profile (name, handle, avatar shortcut) lives in a separate on-device `settings_box` and is read by `cardSettingsProvider`.
+* Ghostwriter / brand personas live in `profiles_box` (`AuthorProfile`: id, name, handle, avatarPath, defaultFont, defaultThemeId). Free accounts may keep 1 profile; Pro unlocks unlimited switching. `cardSettingsProvider` selects, adds, edits, and deletes personas and stamps the active identity onto exported cards.
 
 ### 4.3. Visual Card Exporter (`lib/features/exporter/`)
 * **Off-Screen Rendering**: Cards are rendered in an off-screen widget tree attached to a detached `RenderRepaintBoundary` or via an invisible overlay.
@@ -83,12 +85,14 @@ lib/
 * **Carousel Decks**: Scratchpad drafts split on markdown thematic breaks (`---`, `***`, `___`, 3+ markers) across LF / CRLF / CR. Batch export presents each slide sequentially off-screen at identical dimensions and DPI, then shares or saves every PNG together. Watermark / Pro gating is applied per slide via `isProPurchased`.
 * **Rich Card Typography**: `MarkdownCardContent` paints headings, emphasis, blockquotes, lists, and inline code as widgets — raw `#` / `**` / `>` never appear on the canvas. Fenced blocks still go through `SyntaxCardBlock`. Type is sized for a 1080px canvas (H1 78px / body 38px / code 32px) then multiplied by `CardLayout.fontScaleFor` (1.35× / 1.1× / 0.95× / 0.82× by character length). Body copy is vertically centered between the author header and watermark; insets are 84×64. A FittedBox clip guard keeps long slides on-canvas; there is no 280-character tweet cap.
 * **Inspect & Clipboard**: Tapping the live preview opens a full-screen `InteractiveViewer` inspect modal (pinch-zoom 0.8×–4.0×) so typography and syntax highlighting can be checked at export resolution. **Copy Card** rasterizes the visible slide and writes raw PNG bytes through `super_clipboard` (`Formats.png`) for pasting into Stories, X, LinkedIn, and messaging apps. A glassmorphism overlay reports rasterization progress (`Rendering 1080px card...` / `Preparing slide N of M...`) and blocks duplicate taps.
-* **Code Cards**: Fenced markdown (` ```[lang] `) is parsed on-device into prose + code segments. `SyntaxCardBlock` paints JetBrains Mono with Atom One Dark (Terminal / Midnight) or GitHub Light (Minimal); unknown or missing language tags fall back to plain monospace. Highlighting uses bundled `flutter_highlight` / `highlight` — no network.
+* **LinkedIn PDF Carousels**: `LinkedInPdfExporter` compiles rasterized 1:1 slides into a multi-page PDF on-device via the pure-Dart `pdf` package. Each page is `PdfPageFormat(1080, 1080, marginAll: 0)` with the PNG drawn `BoxFit.cover` so LinkedIn document posts swipe full-bleed. `CardExportService.shareLinkedInPdf` opens the native share sheet as `application/pdf`. Free users hitting **Export LinkedIn PDF** see `PaywallBottomSheet`.
+* **Card Themes**: Free: **Minimal**. Pro: **Midnight**, **Terminal**, **Modern Aurora** (slate + indigo/violet blooms), **Editorial Warm** (cream paper), **Neo-Brutalist** (4px black border), and **Custom Brand** (hex / swatch / color-wheel picker). `CardCanvas` paints `backgroundGradient`, `overlayGradients`, and `resolvedBorder` from `CardThemeConfig`.
+* **Code Cards**: Fenced markdown (` ```[lang] `) is parsed on-device into prose + code segments. `SyntaxCardBlock` paints JetBrains Mono with Atom One Dark (dark / Terminal palettes) or GitHub Light (light palettes); unknown or missing language tags fall back to plain monospace. Highlighting uses bundled `flutter_highlight` / `highlight` — no network.
 
 ### 4.4. Entitlement Gating (`lib/features/paywall/`)
 * State tracked via a single reactive boolean: `isProPurchased`.
 * Checks RevenueCat cache on launch (`CustomerInfo.entitlements['pro_access']?.isActive`).
-* Hard enforcement: The export render pipeline intercepts attempts to rasterize custom themes or strip watermarks if `isProPurchased == false`.
+* Hard enforcement: The export render pipeline intercepts attempts to rasterize custom themes or strip watermarks if `isProPurchased == false`. LinkedIn PDF export, extra brand profiles, Aurora / Editorial / Neo-Brutal / Custom Hex, and watermark removal all open `PaywallBottomSheet`.
 
 ### 4.5. Scratchpad Editor (`lib/features/scratchpad/`)
 * **Raw buffer invariant**: The Hive draft and `TextEditingController.text` stay standard markdown. Visual styling never rewrites tokens into Unicode or HTML.

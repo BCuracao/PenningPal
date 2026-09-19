@@ -269,6 +269,8 @@ void main() {
       expect(find.text('Slide 1 of 3'), findsOneWidget);
       expect(find.text('Share Carousel (3 Slides)'), findsOneWidget);
       expect(find.text('Save All (3 Slides)'), findsOneWidget);
+      expect(find.text('Export LinkedIn PDF'), findsOneWidget);
+      expect(find.byKey(const Key('export-linkedin-pdf')), findsOneWidget);
       expect(find.text('First slide'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('carousel-next')));
@@ -285,6 +287,7 @@ void main() {
       expect(find.byKey(const Key('carousel-page-view')), findsNothing);
       expect(find.text('Share Image'), findsOneWidget);
       expect(find.text('Save Image'), findsOneWidget);
+      expect(find.byKey(const Key('export-linkedin-pdf')), findsNothing);
       expect(find.text('Just one quote'), findsOneWidget);
     });
 
@@ -349,6 +352,42 @@ void main() {
 
       expect(batch.lastPro, isFalse);
       expect(find.byKey(const Key('card-watermark')), findsWidgets);
+    });
+
+    testWidgets('unentitled LinkedIn PDF export opens the paywall',
+        (tester) async {
+      await pumpExporter(tester, isPro: false);
+
+      await tester.ensureVisible(find.byKey(const Key('export-linkedin-pdf')));
+      await tester.tap(find.byKey(const Key('export-linkedin-pdf')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
+      expect(
+        find.text('Export swipeable LinkedIn PDF carousels'),
+        findsWidgets,
+      );
+      expect(find.byKey(const Key('paywall-highlight')), findsOneWidget);
+    });
+
+    testWidgets('pro LinkedIn PDF export rasterizes then shares a PDF',
+        (tester) async {
+      final batch = _FakeBatchExporter();
+      final export = RecordingCarouselExportService();
+      await pumpExporter(
+        tester,
+        batchExporter: batch,
+        exportService: export,
+      );
+
+      await tester.ensureVisible(find.byKey(const Key('export-linkedin-pdf')));
+      await tester.tap(find.byKey(const Key('export-linkedin-pdf')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(batch.calls, 1);
+      expect(export.pdfCalls, hasLength(1));
+      expect(export.pdfCalls.single, hasLength(3));
     });
   });
 
@@ -539,11 +578,19 @@ class _NoopExportService extends CardExportService {
   }) async {
     return slidesImages.length;
   }
+
+  @override
+  Future<void> shareLinkedInPdf(
+    List<Uint8List> slidePngs, {
+    String filename = 'carousel.pdf',
+    Rect? sharePositionOrigin,
+  }) async {}
 }
 
 class RecordingCarouselExportService extends CardExportService {
   final List<List<Uint8List>> shareAllCalls = <List<Uint8List>>[];
   final List<List<Uint8List>> saveAllCalls = <List<Uint8List>>[];
+  final List<List<Uint8List>> pdfCalls = <List<Uint8List>>[];
 
   @override
   Future<void> shareAllSlides(
@@ -561,5 +608,14 @@ class RecordingCarouselExportService extends CardExportService {
   }) async {
     saveAllCalls.add(List<Uint8List>.from(slidesImages));
     return slidesImages.length;
+  }
+
+  @override
+  Future<void> shareLinkedInPdf(
+    List<Uint8List> slidePngs, {
+    String filename = 'carousel.pdf',
+    Rect? sharePositionOrigin,
+  }) async {
+    pdfCalls.add(List<Uint8List>.from(slidePngs));
   }
 }

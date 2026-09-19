@@ -7,13 +7,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/persistence/profile_storage.dart';
+import '../../../core/persistence/settings_storage.dart';
 import '../../paywall/paywall_bottom_sheet.dart';
 import '../../paywall/paywall_provider.dart';
 import '../models/carousel_deck.dart';
 import '../render/card_export_service.dart';
 import '../render/card_rasterizer.dart';
 import '../render/carousel_batch_exporter.dart';
+import '../state/card_settings.dart';
 import '../templates/card_theme_config.dart';
+import 'brand_color_picker_sheet.dart';
+import 'brand_profile_sheet.dart';
 import 'card_canvas.dart';
 import 'card_inspect_modal.dart';
 
@@ -60,6 +65,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   int _slideIndex = 0;
   int? _exportCurrent;
   int? _exportTotal;
+  bool _appliedProfileTheme = false;
 
   /// Most recent PNG capture, retained for tests.
   @visibleForTesting
@@ -84,15 +90,47 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appliedProfileTheme) return;
+    _appliedProfileTheme = true;
+    final settings = ref.read(cardSettingsProvider);
+    final resolved = _themeFromSettings(settings);
+    final isPro = ref.read(isProPurchasedProvider);
+    if (!resolved.isPremium || isPro) {
+      _theme = resolved.copyWith(showWatermark: _theme.showWatermark);
+    }
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  CardThemeConfig _themeFromSettings(CardSettings settings) {
+    return CardPresets.resolve(
+      settings.defaultThemeId,
+      customBackground: Color(settings.customBackgroundColor),
+      customText: Color(settings.customTextColor),
+    );
+  }
+
+  String? get _authorName {
+    final name = ref.read(cardSettingsProvider).authorName.trim();
+    if (name.isNotEmpty) return name;
+    return widget.author;
+  }
+
+  String? get _authorHandle {
+    return ref.read(cardSettingsProvider).formattedHandle ?? widget.authorHandle;
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isPro = _isPro;
+    final settings = ref.watch(cardSettingsProvider);
     final titleStyle = GoogleFonts.inter(
       fontWeight: FontWeight.w600,
       fontSize: 18,
@@ -120,6 +158,11 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
                   child: _buildPreview(isPro),
                 ),
               ),
+              _ProfileSwitcherPill(
+                settings: settings,
+                enabled: !_isBusy,
+                onTap: () => unawaited(_openProfileSwitcher()),
+              ),
               _CharacterMeter(text: _meterText),
               _WatermarkToggle(
                 isPro: isPro,
@@ -139,9 +182,11 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
                     busy: _busy,
                     isCarousel: _deck.isCarousel,
                     slideCount: _deck.totalSlides,
+                    isPro: isPro,
                     onShare: _shareCard,
                     onSave: _saveToPhotos,
                     onCopy: _copyCard,
+                    onExportPdf: _exportLinkedInPdf,
                   ),
                 ),
               ),
@@ -160,17 +205,56 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
 
   void _onThemeSelected(CardThemeConfig preset) {
     if (preset.isPremium && !ref.read(isProPurchasedProvider)) {
-      unawaited(_promptUpgrade());
+      unawaited(_promptUpgrade(
+        highlight: preset.isCustom
+            ? 'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes'
+            : null,
+      ));
+      return;
+    }
+    if (preset.isCustom) {
+      unawaited(_pickCustomColors());
       return;
     }
     setState(() {
       _theme = preset.copyWith(showWatermark: _theme.showWatermark);
     });
+    unawaited(
+      ref.read(cardSettingsProvider.notifier).update(defaultThemeId: preset.id),
+    );
+  }
+
+  Future<void> _pickCustomColors() async {
+    final settings = ref.read(cardSettingsProvider);
+    final picked = await BrandColorPickerSheet.show(
+      context,
+      backgroundColor: _theme.isCustom
+          ? _theme.backgroundColor
+          : Color(settings.customBackgroundColor),
+      textColor: _theme.isCustom
+          ? _theme.textColor
+          : Color(settings.customTextColor),
+    );
+    if (picked == null || !mounted) return;
+    await ref.read(cardSettingsProvider.notifier).update(
+          customBackgroundColor: picked.background.toARGB32(),
+          customTextColor: picked.text.toARGB32(),
+          defaultThemeId: CardPresets.customId,
+        );
+    if (!mounted) return;
+    setState(() {
+      _theme = CardPresets.custom(
+        backgroundColor: picked.background,
+        textColor: picked.text,
+      ).copyWith(showWatermark: _theme.showWatermark);
+    });
   }
 
   void _onRemoveWatermarkChanged(bool remove) {
     if (!ref.read(isProPurchasedProvider)) {
-      unawaited(_promptUpgrade());
+      unawaited(_promptUpgrade(
+        highlight: "Remove 'Made with PenningPal' watermark",
+      ));
       return;
     }
     setState(() {
@@ -178,8 +262,30 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     });
   }
 
-  Future<void> _promptUpgrade() async {
-    await PaywallBottomSheet.show(context);
+  Future<void> _promptUpgrade({String? highlight}) async {
+    await PaywallBottomSheet.show(context, highlightBenefit: highlight);
+  }
+
+  Future<void> _openProfileSwitcher() async {
+    final selected = await BrandProfileSheet.show(context);
+    if (selected == null || !mounted) return;
+    await ref.read(cardSettingsProvider.notifier).selectProfile(selected.id);
+    if (!mounted) return;
+    _applyProfileTheme(selected);
+  }
+
+  void _applyProfileTheme(AuthorProfile profile) {
+    final settings = ref.read(cardSettingsProvider);
+    final resolved = CardPresets.resolve(
+      profile.defaultThemeId,
+      customBackground: Color(settings.customBackgroundColor),
+      customText: Color(settings.customTextColor),
+    );
+    final isPro = ref.read(isProPurchasedProvider);
+    if (resolved.isPremium && !isPro) return;
+    setState(() {
+      _theme = resolved.copyWith(showWatermark: _theme.showWatermark);
+    });
   }
 
   GlobalKey _previewKeyFor(int index) =>
@@ -193,8 +299,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
         text: widget.text,
         aspectRatio: _aspect,
         theme: _theme,
-        author: widget.author,
-        authorHandle: widget.authorHandle,
+        author: _authorName,
+        authorHandle: _authorHandle,
         isProPurchased: isPro,
         onInspect: _isBusy ? null : () => unawaited(_openInspect(widget.text)),
       );
@@ -226,8 +332,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
                 text: deck.slideAt(index),
                 aspectRatio: _aspect,
                 theme: _theme,
-                author: widget.author,
-                authorHandle: widget.authorHandle,
+                author: _authorName,
+                authorHandle: _authorHandle,
                 isProPurchased: isPro,
                 currentSlideIndex: index,
                 totalSlides: deck.totalSlides,
@@ -254,8 +360,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       aspectRatio: _aspect,
       theme: _theme,
       isProPurchased: ref.read(isProPurchasedProvider),
-      author: widget.author,
-      authorHandle: widget.authorHandle,
+      author: _authorName,
+      authorHandle: _authorHandle,
       currentSlideIndex: _deck.isCarousel ? _slideIndex : null,
       totalSlides: _deck.isCarousel ? _deck.totalSlides : null,
     );
@@ -281,15 +387,18 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     );
   }
 
-  Future<List<Uint8List>> _rasterizeDeck(CarouselDeck deck) {
+  Future<List<Uint8List>> _rasterizeDeck(
+    CarouselDeck deck, {
+    CardAspectRatio? aspect,
+  }) {
     return widget.batchExporter.renderDeck(
       deck,
       _theme,
-      _aspect,
+      aspect ?? _aspect,
       ref.read(isProPurchasedProvider),
       context: context,
-      author: widget.author,
-      authorHandle: widget.authorHandle,
+      author: _authorName,
+      authorHandle: _authorHandle,
       onProgress: (current, total) {
         if (!mounted) return;
         setState(() {
@@ -421,6 +530,43 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     }
   }
 
+  Future<void> _exportLinkedInPdf(BuildContext buttonContext) async {
+    if (_isBusy) return;
+    if (!ref.read(isProPurchasedProvider)) {
+      await _promptUpgrade(
+        highlight: 'Export swipeable LinkedIn PDF carousels',
+      );
+      return;
+    }
+    final origin = _shareOrigin(buttonContext);
+    final deck = _deck;
+    if (!deck.isCarousel) return;
+    _beginExport(_ExportAction.pdf, deck);
+    try {
+      final images = await _rasterizeDeck(
+        deck,
+        aspect: CardAspectRatio.square,
+      );
+      if (!mounted) return;
+      if (images.isEmpty) {
+        _showToast('Could not capture card');
+        return;
+      }
+      setState(() => _lastPngBytes = images.last);
+      await widget.exportService.shareLinkedInPdf(
+        images,
+        sharePositionOrigin: origin,
+      );
+      if (!mounted) return;
+      unawaited(HapticFeedback.lightImpact());
+    } catch (_) {
+      if (!mounted) return;
+      _showToast('Could not export LinkedIn PDF');
+    } finally {
+      _clearBusy();
+    }
+  }
+
   void _beginExport(_ExportAction action, CarouselDeck deck) {
     setState(() {
       _busy = action;
@@ -468,24 +614,28 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   }
 }
 
-enum _ExportAction { share, save, copy }
+enum _ExportAction { share, save, copy, pdf }
 
 class _ExportActionBar extends StatelessWidget {
   const _ExportActionBar({
     required this.busy,
     required this.isCarousel,
     required this.slideCount,
+    required this.isPro,
     required this.onShare,
     required this.onSave,
     required this.onCopy,
+    required this.onExportPdf,
   });
 
   final _ExportAction? busy;
   final bool isCarousel;
   final int slideCount;
+  final bool isPro;
   final ValueChanged<BuildContext> onShare;
   final VoidCallback onSave;
   final VoidCallback onCopy;
+  final ValueChanged<BuildContext> onExportPdf;
 
   @override
   Widget build(BuildContext context) {
@@ -502,80 +652,126 @@ class _ExportActionBar extends StatelessWidget {
     final saveLabel = busy == _ExportAction.save
         ? (isCarousel ? 'Exporting…' : 'Saving…')
         : (isCarousel ? 'Save All ($slideCount Slides)' : 'Save Image');
+    final pdfLabel = busy == _ExportAction.pdf
+        ? 'Exporting PDF…'
+        : 'Export LinkedIn PDF';
 
-    return SizedBox(
-      height: 48,
-      child: Row(
-        children: [
-          Expanded(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isCarousel) ...[
+          SizedBox(
+            width: double.infinity,
+            height: 44,
             child: Builder(
               builder: (buttonContext) {
                 return FilledButton.icon(
-                  key: const Key('share-card-png'),
-                  onPressed: isBusy ? null : () => onShare(buttonContext),
-                  icon: busy == _ExportAction.share
+                  key: const Key('export-linkedin-pdf'),
+                  onPressed:
+                      isBusy ? null : () => onExportPdf(buttonContext),
+                  icon: busy == _ExportAction.pdf
                       ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.ios_share, size: 18),
+                      : Icon(
+                          isPro
+                              ? Icons.picture_as_pdf_outlined
+                              : Icons.lock_outline,
+                          size: 18,
+                        ),
                   label: Text(
-                    shareLabel,
+                    pdfLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: labelStyle,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
                 );
               },
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: FilledButton.tonalIcon(
-              key: const Key('save-card-gallery'),
-              onPressed: isBusy ? null : onSave,
-              icon: busy == _ExportAction.save
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.photo_outlined, size: 18),
-              label: Text(
-                saveLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: labelStyle,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: OutlinedButton.icon(
-              key: const Key('copy-card-png'),
-              onPressed: isBusy ? null : onCopy,
-              style: OutlinedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              icon: busy == _ExportAction.copy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.content_copy, size: 18),
-              label: Text(
-                'Copy Card',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: labelStyle,
-              ),
-            ),
-          ),
+          const SizedBox(height: 8),
         ],
-      ),
+        SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              Expanded(
+                child: Builder(
+                  builder: (buttonContext) {
+                    return FilledButton.icon(
+                      key: const Key('share-card-png'),
+                      onPressed:
+                          isBusy ? null : () => onShare(buttonContext),
+                      icon: busy == _ExportAction.share
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.ios_share, size: 18),
+                      label: Text(
+                        shareLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: labelStyle,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  key: const Key('save-card-gallery'),
+                  onPressed: isBusy ? null : onSave,
+                  icon: busy == _ExportAction.save
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.photo_outlined, size: 18),
+                  label: Text(
+                    saveLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: OutlinedButton.icon(
+                  key: const Key('copy-card-png'),
+                  onPressed: isBusy ? null : onCopy,
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: busy == _ExportAction.copy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.content_copy, size: 18),
+                  label: Text(
+                    'Copy Card',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -704,6 +900,89 @@ class _AspectSwitch extends StatelessWidget {
   }
 }
 
+class _ProfileSwitcherPill extends StatelessWidget {
+  const _ProfileSwitcherPill({
+    required this.settings,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final CardSettings settings;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final profile = settings.activeProfile;
+    final name = profile?.displayName ??
+        (settings.authorName.trim().isNotEmpty
+            ? settings.authorName.trim()
+            : 'My Brand');
+    final initials = profile?.initials ?? settings.initials;
+    final avatarColor = brandAvatarColors[
+        (profile?.avatarPreset ?? settings.avatarPreset) %
+            brandAvatarColors.length];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Material(
+          color: colors.surfaceContainerHighest.withValues(alpha: 0.7),
+          shape: StadiumBorder(
+            side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+          ),
+          child: InkWell(
+            key: const Key('profile-switcher-pill'),
+            onTap: enabled ? onTap : null,
+            customBorder: const StadiumBorder(),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor: avatarColor,
+                    child: Text(
+                      initials,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 180),
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.expand_more,
+                    size: 18,
+                    color: colors.onSurface.withValues(alpha: 0.55),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CharacterMeter extends StatelessWidget {
   const _CharacterMeter({required this.text});
 
@@ -791,8 +1070,9 @@ class _TemplateCarousel extends StatelessWidget {
         itemBuilder: (context, index) {
           final preset = CardPresets.all[index];
           final isSelected = preset.id == selected.id;
+          final swatch = isSelected ? selected : preset;
           return _TemplateChip(
-            preset: preset,
+            preset: swatch,
             selected: isSelected,
             locked: preset.isPremium && !isPro,
             onTap: () => onSelected(preset),

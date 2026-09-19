@@ -26,6 +26,7 @@
 - [x] Task 3.5: Implement on-device syntax highlighting for code cards and terminal templates.
 - [x] Task 3.6: Implement rich Markdown card rendering, auto-scaling typography, and hardened carousel splitting.
 - [x] Task 3.7: Implement Copy Image to Clipboard via super_clipboard and interactive pinch-to-zoom inspect.
+- [x] Task 3.8: Implement LinkedIn Multi-Page PDF Carousel export, new card theme presets, and multi-profile brand switcher.
 - [x] Task 4.1: Integrate RevenueCat lifetime paywall gate.
 - [x] Task 4.2: Configure App branding (SocialSlate), offline legal pages, launcher icons, and release ProGuard rules.
 - [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
@@ -242,3 +243,12 @@
 - Tests: `test/features/card_clipboard_test.dart` — successful PNG write, invalid buffer, missing clipboard, Copy Card toast, carousel current-slide copy, tap-to-zoom inspect route. `flutter test` 246 passed; `flutter analyze lib test` clean.
 - Modified: `lib/features/exporter/render/card_export_service.dart`, `lib/features/exporter/presentation/{card_exporter_screen,card_inspect_modal}.dart`, `android/app/src/main/AndroidManifest.xml`, `test/features/{card_clipboard_test,card_export_service_test,carousel_deck_test,card_rasterizer_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: none for copy/inspect; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-19 — Task 3.8: LinkedIn PDF carousels, premium themes, brand profiles
+- Themes: **Modern Aurora** (slate `#0B0F19` + indigo `#4F46E5` / violet `#9333EA` blooms), **Editorial Warm** (cream `#F9F6EE`, charcoal `#1C1917`, terracotta `#C2410C`), **Neo-Brutalist** (canary `#FEF08A`, mint accent `#A7F3D0`, 4px black border), **Custom Brand** (12 swatches + hex + `flutter_colorpicker`, Pro). `CardCanvas` paints gradients, overlay blooms, and theme-defined borders.
+- On-device `LinkedInPdfExporter` (`package:pdf`) writes marginless 1080×1080 pt pages with full-bleed `BoxFit.cover` PNGs. Carousel action bar adds **Export LinkedIn PDF**; free taps open the paywall.
+- `ProfileStorage` (`profiles_box`) stores ghostwriter personas. Free cap is 1; Pro is unlimited. Exporter pill switches identities; Settings exposes the same sheet.
+- Paywall bullets now call out watermark removal, LinkedIn PDF carousels, unlimited brand profiles, Aurora / Editorial / Neo-Brutal / Custom Hex, and a one-time $4.99 lifetime unlock.
+- Tests: `test/features/pdf_export_test.dart`, `test/features/profile_storage_test.dart`, plus theme / paywall / carousel updates. `flutter test` 266 passed; `flutter analyze lib test` clean.
+- Modified: `pubspec.yaml`, `lib/features/exporter/{templates/card_theme_config,presentation/{card_canvas,card_exporter_screen,brand_color_picker_sheet,brand_profile_sheet,syntax_card_block},render/{linkedin_pdf_exporter,card_export_service},state/card_settings}.dart`, `lib/core/persistence/{profile_storage,settings_storage}.dart`, `lib/features/paywall/paywall_bottom_sheet.dart`, `lib/main.dart`, settings sheet, tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still replace RevenueCat placeholder keys before store shipping.

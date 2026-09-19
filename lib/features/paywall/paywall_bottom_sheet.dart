@@ -9,15 +9,23 @@ import 'paywall_provider.dart';
 /// High-converting lifetime unlock sheet. Returns `true` when Pro becomes
 /// active (purchase or restore), `false` / `null` when dismissed.
 class PaywallBottomSheet extends ConsumerStatefulWidget {
-  const PaywallBottomSheet({super.key});
+  const PaywallBottomSheet({super.key, this.highlightBenefit});
 
-  static Future<bool?> show(BuildContext context) {
+  /// Optional benefit to call out when the sheet is opened from a gated action.
+  final String? highlightBenefit;
+
+  static Future<bool?> show(
+    BuildContext context, {
+    String? highlightBenefit,
+  }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       useSafeArea: true,
-      builder: (context) => const PaywallBottomSheet(),
+      builder: (context) => PaywallBottomSheet(
+        highlightBenefit: highlightBenefit,
+      ),
     );
   }
 
@@ -44,10 +52,11 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
         24,
         16 + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Text(
             'Unlock PenningPal Pro',
             key: const Key('paywall-headline'),
@@ -69,18 +78,51 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
               color: ink.withValues(alpha: 0.65),
             ),
           ),
+          if (widget.highlightBenefit != null) ...[
+            const SizedBox(height: 16),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colors.primary.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Text(
+                  widget.highlightBenefit!,
+                  key: const Key('paywall-highlight'),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: colors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           const _BenefitRow(
             icon: Icons.water_drop_outlined,
-            label: 'Remove card watermarks',
+            label: "Remove 'Made with PenningPal' watermark",
           ),
           const _BenefitRow(
-            icon: Icons.dark_mode_outlined,
-            label: 'Access midnight and terminal themes',
+            icon: Icons.picture_as_pdf_outlined,
+            label: 'Export swipeable LinkedIn PDF carousels',
           ),
           const _BenefitRow(
-            icon: Icons.text_fields_outlined,
-            label: 'Unlock custom typography',
+            icon: Icons.badge_outlined,
+            label: 'Unlimited Ghostwriter & Brand profiles',
+          ),
+          const _BenefitRow(
+            icon: Icons.palette_outlined,
+            label:
+                'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes',
           ),
           const SizedBox(height: 20),
           DecoratedBox(
@@ -91,7 +133,7 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Text(
-                'One-time payment of ${RevenueCatConfig.lifetimePriceLabel} (Lifetime Access)',
+                'One-time purchase of ${RevenueCatConfig.lifetimePriceLabel} • Lifetime access',
                 key: const Key('paywall-price'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
@@ -186,6 +228,7 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
             ],
           ),
         ],
+        ),
       ),
     );
   }

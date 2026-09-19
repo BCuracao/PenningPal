@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 import 'card_rasterizer.dart';
+import 'linkedin_pdf_exporter.dart';
 
 /// Resolves the on-device cache directory used for temporary PNG files.
 typedef TemporaryDirectoryGetter = Future<Directory> Function();
@@ -44,6 +45,7 @@ class CardExportService {
     this.requestGalleryAccess,
     this.shareFiles,
     this.writePngToClipboard,
+    this.pdfExporter,
   });
 
   /// Album created in Photos when saving a card.
@@ -69,6 +71,10 @@ class CardExportService {
 
   /// Override for tests. Defaults to `super_clipboard` [Formats.png].
   final ClipboardPngWriter? writePngToClipboard;
+
+  /// Override for tests. Defaults to a [LinkedInPdfExporter] using the same
+  /// temporary directory.
+  final LinkedInPdfExporter? pdfExporter;
 
   /// Timestamped PNG name, e.g. `clean_canvas_20260918_150407.png`.
   static String generateFilename({DateTime? now}) {
@@ -226,6 +232,29 @@ class CardExportService {
     if (!isValidPngBytes(pngBytes)) return false;
     final writer = writePngToClipboard ?? _writePngToSystemClipboard;
     return writer(pngBytes);
+  }
+
+  /// Compiles slide PNGs into a 1080×1080 LinkedIn PDF and opens the share sheet.
+  ///
+  /// Equivalent to `Share.shareXFiles([XFile(path, mimeType: 'application/pdf')])`.
+  Future<void> shareLinkedInPdf(
+    List<Uint8List> slidePngs, {
+    String filename = LinkedInPdfExporter.defaultFilename,
+    Rect? sharePositionOrigin,
+  }) async {
+    if (slidePngs.isEmpty) return;
+    final exporter = pdfExporter ??
+        LinkedInPdfExporter(temporaryDirectory: temporaryDirectory);
+    final file = await exporter.generatePdfCarousel(
+      slidePngs,
+      filename: filename,
+    );
+    final share = shareFiles ?? _shareXFiles;
+    await share(
+      [XFile(file.path, mimeType: 'application/pdf')],
+      text: '',
+      sharePositionOrigin: sharePositionOrigin,
+    );
   }
 
   /// Writes a temp PNG and opens the native share sheet.

@@ -55,6 +55,60 @@ void main() {
       expect(theme.showWatermark, isTrue);
     });
 
+    test('Modern Aurora uses slate with indigo and violet blooms', () {
+      const theme = CardPresets.modernAurora;
+      expect(theme.id, 'aurora');
+      expect(theme.backgroundColor, const Color(0xFF0B0F19));
+      expect(theme.textColor, const Color(0xFFFFFFFF));
+      expect(theme.isPremium, isTrue);
+      expect(theme.backgroundGradient, isA<LinearGradient>());
+      expect(theme.overlayGradients, hasLength(2));
+      expect(theme.isDark, isTrue);
+    });
+
+    test('Editorial Warm uses cream paper and terracotta accents', () {
+      const theme = CardPresets.editorialWarm;
+      expect(theme.id, 'editorial');
+      expect(theme.backgroundColor, const Color(0xFFF9F6EE));
+      expect(theme.textColor, const Color(0xFF1C1917));
+      expect(theme.accentColor, const Color(0xFFC2410C));
+      expect(theme.isPremium, isTrue);
+      expect(theme.isDark, isFalse);
+    });
+
+    test('Neo-Brutalist uses canary, black type, and a 4px border', () {
+      const theme = CardPresets.neoBrutalist;
+      expect(theme.id, 'neo_brutal');
+      expect(theme.backgroundColor, const Color(0xFFFEF08A));
+      expect(theme.textColor, const Color(0xFF000000));
+      expect(theme.accentColor, const Color(0xFFA7F3D0));
+      expect(theme.borderWidth, 4);
+      expect(theme.borderColor, const Color(0xFF000000));
+      expect(theme.resolvedBorder, isNotNull);
+      expect(theme.isPremium, isTrue);
+    });
+
+    test('Custom Brand is premium and accepts live hex colors', () {
+      expect(CardPresets.customBrand.id, CardPresets.customId);
+      expect(CardPresets.customBrand.isPremium, isTrue);
+      expect(CardPresets.customBrand.isCustom, isTrue);
+      final custom = CardPresets.custom(
+        backgroundColor: const Color(0xFF112233),
+        textColor: const Color(0xFFEEEEEE),
+      );
+      expect(custom.backgroundColor, const Color(0xFF112233));
+      expect(custom.textColor, const Color(0xFFEEEEEE));
+      expect(custom.isPremium, isTrue);
+    });
+
+    test('HexColor parses #RGB, #RRGGBB, and formats RGB', () {
+      expect(HexColor.tryParse('#0B0F19'), const Color(0xFF0B0F19));
+      expect(HexColor.tryParse('FEF08A'), const Color(0xFFFEF08A));
+      expect(HexColor.tryParse('#ABC'), const Color(0xFFAABBCC));
+      expect(HexColor.format(const Color(0xFF0B0F19)), '#0B0F19');
+      expect(HexColor.tryParse('nope'), isNull);
+    });
+
     test('copyWith can hide the watermark without mutating the preset', () {
       const original = CardPresets.minimalClean;
       final stripped = original.copyWith(showWatermark: false);

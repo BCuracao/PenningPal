@@ -244,11 +244,18 @@ void main() {
 
       expect(
         find.text(
-          'One-time payment of ${RevenueCatConfig.lifetimePriceLabel} (Lifetime Access)',
+          'One-time purchase of ${RevenueCatConfig.lifetimePriceLabel} • Lifetime access',
         ),
         findsOneWidget,
       );
-      expect(find.text('Remove card watermarks'), findsOneWidget);
+      expect(
+        find.text("Remove 'Made with PenningPal' watermark"),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Export swipeable LinkedIn PDF carousels'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const Key('paywall-unlock')));
       await tester.pumpAndSettle();

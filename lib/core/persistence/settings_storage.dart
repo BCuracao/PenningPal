@@ -1,11 +1,20 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'profile_storage.dart';
+
 /// Default author profile used by the card exporter.
 class CardSettings {
   const CardSettings({
     this.authorName = '',
     this.authorHandle = '',
     this.avatarPreset = 0,
+    this.avatarPath,
+    this.defaultFont = 'Inter',
+    this.defaultThemeId = 'minimal',
+    this.activeProfileId = '',
+    this.customBackgroundColor = 0xFF0F172A,
+    this.customTextColor = 0xFFF8FAFC,
+    this.profiles = const [],
   });
 
   static const CardSettings defaults = CardSettings();
@@ -15,6 +24,23 @@ class CardSettings {
   final String authorName;
   final String authorHandle;
   final int avatarPreset;
+  final String? avatarPath;
+  final String defaultFont;
+  final String defaultThemeId;
+  final String activeProfileId;
+  final int customBackgroundColor;
+  final int customTextColor;
+
+  /// Runtime snapshot of [ProfileStorage.listProfiles]. Not persisted here.
+  final List<AuthorProfile> profiles;
+
+  AuthorProfile? get activeProfile {
+    if (profiles.isEmpty) return null;
+    for (final profile in profiles) {
+      if (profile.id == activeProfileId) return profile;
+    }
+    return profiles.first;
+  }
 
   /// Handle preferred, then name. `null` when both are empty so the canvas
   /// can fall back to its built-in brand slot.
@@ -54,6 +80,13 @@ class CardSettings {
     String? authorName,
     String? authorHandle,
     int? avatarPreset,
+    String? avatarPath,
+    String? defaultFont,
+    String? defaultThemeId,
+    String? activeProfileId,
+    int? customBackgroundColor,
+    int? customTextColor,
+    List<AuthorProfile>? profiles,
   }) {
     return CardSettings(
       authorName: authorName ?? this.authorName,
@@ -61,6 +94,14 @@ class CardSettings {
       avatarPreset: (avatarPreset ?? this.avatarPreset)
           .clamp(0, avatarPresetCount - 1)
           .toInt(),
+      avatarPath: avatarPath ?? this.avatarPath,
+      defaultFont: defaultFont ?? this.defaultFont,
+      defaultThemeId: defaultThemeId ?? this.defaultThemeId,
+      activeProfileId: activeProfileId ?? this.activeProfileId,
+      customBackgroundColor:
+          customBackgroundColor ?? this.customBackgroundColor,
+      customTextColor: customTextColor ?? this.customTextColor,
+      profiles: profiles ?? this.profiles,
     );
   }
 
@@ -69,6 +110,12 @@ class CardSettings {
       'authorName': authorName,
       'authorHandle': authorHandle,
       'avatarPreset': avatarPreset,
+      'avatarPath': avatarPath,
+      'defaultFont': defaultFont,
+      'defaultThemeId': defaultThemeId,
+      'activeProfileId': activeProfileId,
+      'customBackgroundColor': customBackgroundColor,
+      'customTextColor': customTextColor,
     };
   }
 
@@ -78,6 +125,12 @@ class CardSettings {
       authorName: map['authorName'] as String? ?? '',
       authorHandle: map['authorHandle'] as String? ?? '',
       avatarPreset: preset is int ? preset : 0,
+      avatarPath: map['avatarPath'] as String?,
+      defaultFont: map['defaultFont'] as String? ?? 'Inter',
+      defaultThemeId: map['defaultThemeId'] as String? ?? 'minimal',
+      activeProfileId: map['activeProfileId'] as String? ?? '',
+      customBackgroundColor: map['customBackgroundColor'] as int? ?? 0xFF0F172A,
+      customTextColor: map['customTextColor'] as int? ?? 0xFFF8FAFC,
     );
   }
 }

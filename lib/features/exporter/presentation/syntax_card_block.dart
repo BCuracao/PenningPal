@@ -121,8 +121,7 @@ class SyntaxCardPalette {
   final Map<String, TextStyle> tokenTheme;
 
   factory SyntaxCardPalette.forTheme(CardThemeConfig theme) {
-    if (theme.variant == CardTemplateVariant.terminal ||
-        theme.id == CardPresets.midnightDark.id) {
+    if (theme.variant == CardTemplateVariant.terminal || theme.isDark) {
       return SyntaxCardPalette(
         background: const Color(0xFF0D1117),
         foreground: const Color(0xFFD4D4D4),

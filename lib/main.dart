@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'core/persistence/draft_storage.dart';
+import 'core/persistence/profile_storage.dart';
 import 'core/persistence/settings_storage.dart';
 import 'features/exporter/state/card_settings.dart';
 import 'features/paywall/paywall_provider.dart';
@@ -18,6 +19,18 @@ Future<void> main() async {
   final settings = SettingsStorage();
   await settings.init();
 
+  final profiles = ProfileStorage();
+  await profiles.init();
+  final saved = settings.load();
+  profiles.seedFrom(
+    authorName: saved.authorName,
+    authorHandle: saved.authorHandle,
+    avatarPath: saved.avatarPath,
+    defaultFont: saved.defaultFont,
+    defaultThemeId: saved.defaultThemeId,
+    avatarPreset: saved.avatarPreset,
+  );
+
   final paywall = PaywallService();
   await paywall.initialize();
 
@@ -26,6 +39,7 @@ Future<void> main() async {
       overrides: [
         draftStorageProvider.overrideWithValue(drafts),
         settingsStorageProvider.overrideWithValue(settings),
+        profileStorageProvider.overrideWithValue(profiles),
         paywallServiceProvider.overrideWithValue(paywall),
       ],
       child: const CleanCanvasApp(),

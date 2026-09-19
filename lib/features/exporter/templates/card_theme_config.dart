@@ -30,6 +30,9 @@ class CardThemeConfig {
     required this.accentColor,
     required this.fontFamily,
     this.backgroundGradient,
+    this.overlayGradients = const [],
+    this.borderWidth,
+    this.borderColor,
     this.showWatermark = true,
     this.isPremium = false,
     this.variant = CardTemplateVariant.plain,
@@ -43,15 +46,26 @@ class CardThemeConfig {
   final String name;
   final Color backgroundColor;
   final Gradient? backgroundGradient;
+
+  /// Extra blooms painted over [backgroundGradient] (Aurora indigo/violet).
+  final List<Gradient> overlayGradients;
+
   final Color textColor;
   final Color accentColor;
   final String fontFamily;
+
+  /// When null, plain templates use a 3px hairline in [accentColor].
+  /// Set to `0` to omit a border. Neo-Brutalist uses `4`.
+  final double? borderWidth;
+
+  /// Solid border color. Null falls back to a translucent [accentColor].
+  final Color? borderColor;
 
   /// Free-tier default is `true`. Pro may strip this; [CardCanvas] still
   /// forces a watermark when [isProPurchased] is false.
   final bool showWatermark;
 
-  /// Midnight, Terminal, and custom palettes require Pro.
+  /// Midnight, Terminal, Aurora, Editorial, Neo-Brutal, and Custom require Pro.
   final bool isPremium;
 
   final CardTemplateVariant variant;
@@ -60,6 +74,22 @@ class CardThemeConfig {
   final String chromeTitle;
 
   bool get isMonospace => fontFamily == fontJetBrainsMono;
+
+  bool get isCustom => id == CardPresets.customId;
+
+  bool get isDark {
+    if (variant == CardTemplateVariant.terminal) return true;
+    return backgroundColor.computeLuminance() < 0.35;
+  }
+
+  /// Resolved card outline used by [CardCanvas].
+  Border? get resolvedBorder {
+    if (variant == CardTemplateVariant.terminal) return null;
+    final width = borderWidth ?? 3;
+    if (width <= 0) return null;
+    final color = borderColor ?? accentColor.withValues(alpha: 0.45);
+    return Border.all(color: color, width: width);
+  }
 
   /// Hard render gate: free users always keep the watermark even if a caller
   /// passes `showWatermark: false`.
@@ -73,9 +103,12 @@ class CardThemeConfig {
     String? name,
     Color? backgroundColor,
     Gradient? backgroundGradient,
+    List<Gradient>? overlayGradients,
     Color? textColor,
     Color? accentColor,
     String? fontFamily,
+    double? borderWidth,
+    Color? borderColor,
     bool? showWatermark,
     bool? isPremium,
     CardTemplateVariant? variant,
@@ -86,9 +119,12 @@ class CardThemeConfig {
       name: name ?? this.name,
       backgroundColor: backgroundColor ?? this.backgroundColor,
       backgroundGradient: backgroundGradient ?? this.backgroundGradient,
+      overlayGradients: overlayGradients ?? this.overlayGradients,
       textColor: textColor ?? this.textColor,
       accentColor: accentColor ?? this.accentColor,
       fontFamily: fontFamily ?? this.fontFamily,
+      borderWidth: borderWidth ?? this.borderWidth,
+      borderColor: borderColor ?? this.borderColor,
       showWatermark: showWatermark ?? this.showWatermark,
       isPremium: isPremium ?? this.isPremium,
       variant: variant ?? this.variant,
@@ -105,6 +141,8 @@ class CardThemeConfig {
         other.textColor == textColor &&
         other.accentColor == accentColor &&
         other.fontFamily == fontFamily &&
+        other.borderWidth == borderWidth &&
+        other.borderColor == borderColor &&
         other.showWatermark == showWatermark &&
         other.isPremium == isPremium &&
         other.variant == variant &&
@@ -119,6 +157,8 @@ class CardThemeConfig {
         textColor,
         accentColor,
         fontFamily,
+        borderWidth,
+        borderColor,
         showWatermark,
         isPremium,
         variant,
@@ -128,8 +168,10 @@ class CardThemeConfig {
 
 enum CardTemplateVariant { plain, terminal }
 
-/// Built-in visual presets. Midnight, Terminal, and custom palettes are Pro.
+/// Built-in visual presets. Advanced palettes and Custom Brand are Pro.
 abstract final class CardPresets {
+  static const String customId = 'custom';
+
   /// Minimal Clean — light paper, charcoal type, hairline accent border.
   static const minimalClean = CardThemeConfig(
     id: 'minimal',
@@ -168,10 +210,82 @@ abstract final class CardPresets {
     isPremium: true,
   );
 
+  /// Modern Aurora — deep slate with indigo / violet glow blooms.
+  static const modernAurora = CardThemeConfig(
+    id: 'aurora',
+    name: 'Aurora',
+    backgroundColor: Color(0xFF0B0F19),
+    backgroundGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF0B0F19), Color(0xFF17122B)],
+    ),
+    overlayGradients: [
+      RadialGradient(
+        center: Alignment(-0.55, -0.6),
+        radius: 1.15,
+        colors: [Color(0xB34F46E5), Color(0x000B0F19)],
+      ),
+      RadialGradient(
+        center: Alignment(0.7, 0.65),
+        radius: 1.2,
+        colors: [Color(0xA69333EA), Color(0x000B0F19)],
+      ),
+    ],
+    textColor: Color(0xFFFFFFFF),
+    accentColor: Color(0xFF818CF8),
+    fontFamily: CardThemeConfig.fontInter,
+    isPremium: true,
+  );
+
+  /// Editorial Warm — antique cream paper with charcoal type.
+  static const editorialWarm = CardThemeConfig(
+    id: 'editorial',
+    name: 'Editorial',
+    backgroundColor: Color(0xFFF9F6EE),
+    backgroundGradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [Color(0xFFF9F6EE), Color(0xFFF3EBDA)],
+    ),
+    textColor: Color(0xFF1C1917),
+    accentColor: Color(0xFFC2410C),
+    fontFamily: CardThemeConfig.fontInter,
+    isPremium: true,
+  );
+
+  /// Neo-Brutalist — canary field, pitch-black type, 4px solid border.
+  static const neoBrutalist = CardThemeConfig(
+    id: 'neo_brutal',
+    name: 'Neo-Brutal',
+    backgroundColor: Color(0xFFFEF08A),
+    textColor: Color(0xFF000000),
+    accentColor: Color(0xFFA7F3D0),
+    fontFamily: CardThemeConfig.fontInter,
+    borderWidth: 4,
+    borderColor: Color(0xFF000000),
+    isPremium: true,
+  );
+
+  /// Custom Brand placeholder. Live colors come from [customBrand].
+  static const customBrand = CardThemeConfig(
+    id: customId,
+    name: 'Custom',
+    backgroundColor: Color(0xFF0F172A),
+    textColor: Color(0xFFF8FAFC),
+    accentColor: Color(0xFFF59E0B),
+    fontFamily: CardThemeConfig.fontInter,
+    isPremium: true,
+  );
+
   static const List<CardThemeConfig> all = [
     minimalClean,
     midnightDark,
     devTerminal,
+    modernAurora,
+    editorialWarm,
+    neoBrutalist,
+    customBrand,
   ];
 
   static CardThemeConfig byId(String id) {
@@ -179,6 +293,39 @@ abstract final class CardPresets {
       (preset) => preset.id == id,
       orElse: () => minimalClean,
     );
+  }
+
+  /// Custom Brand with caller-picked background and type colors.
+  static CardThemeConfig custom({
+    Color backgroundColor = const Color(0xFF0F172A),
+    Color textColor = const Color(0xFFF8FAFC),
+  }) {
+    return customBrand.copyWith(
+      backgroundColor: backgroundColor,
+      textColor: textColor,
+      accentColor: _accentFor(backgroundColor, textColor),
+    );
+  }
+
+  static CardThemeConfig resolve(
+    String themeId, {
+    Color? customBackground,
+    Color? customText,
+  }) {
+    if (themeId == customId) {
+      return custom(
+        backgroundColor: customBackground ?? customBrand.backgroundColor,
+        textColor: customText ?? customBrand.textColor,
+      );
+    }
+    return byId(themeId);
+  }
+
+  static Color _accentFor(Color background, Color text) {
+    final warm = background.computeLuminance() < 0.35
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFFC2410C);
+    return Color.lerp(warm, text, 0.15) ?? warm;
   }
 }
 
@@ -229,4 +376,48 @@ abstract final class CardLayout {
     final base = ratio == CardAspectRatio.square ? 38.0 : 42.0;
     return base * fontScaleFor(text);
   }
+}
+
+/// `#RRGGBB` / `#AARRGGBB` helpers for the Custom Brand picker.
+abstract final class HexColor {
+  static Color? tryParse(String input) {
+    var hex = input.trim();
+    if (hex.startsWith('#')) hex = hex.substring(1);
+    if (hex.length == 3) {
+      hex = '${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}';
+    }
+    if (hex.length == 6) hex = 'FF$hex';
+    if (hex.length != 8) return null;
+    final value = int.tryParse(hex, radix: 16);
+    if (value == null) return null;
+    return Color(value);
+  }
+
+  static Color parse(String input, {Color fallback = const Color(0xFF000000)}) {
+    return tryParse(input) ?? fallback;
+  }
+
+  static String format(Color color) {
+    final argb = color.toARGB32();
+    final rgb = (argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0');
+    return '#${rgb.toUpperCase()}';
+  }
+}
+
+/// Curated brand swatches shown in the Custom Brand picker.
+abstract final class BrandColorSwatches {
+  static const List<Color> all = [
+    Color(0xFF0B0F19),
+    Color(0xFF0F172A),
+    Color(0xFF1E1E1E),
+    Color(0xFFF8F9FA),
+    Color(0xFFF9F6EE),
+    Color(0xFFFEF08A),
+    Color(0xFFA7F3D0),
+    Color(0xFF4F46E5),
+    Color(0xFF9333EA),
+    Color(0xFFC2410C),
+    Color(0xFF1C1917),
+    Color(0xFFFFFFFF),
+  ];
 }

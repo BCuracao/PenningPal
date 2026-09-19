@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../exporter/presentation/brand_profile_sheet.dart';
 import '../../exporter/state/card_settings.dart';
 import '../../paywall/paywall_bottom_sheet.dart';
 import '../../paywall/paywall_provider.dart';
@@ -148,6 +149,16 @@ class _SettingsBottomSheetState extends ConsumerState<SettingsBottomSheet> {
               onChanged: (value) => ref
                   .read(cardSettingsProvider.notifier)
                   .update(authorHandle: value),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const Key('settings-add-brand-profile'),
+              onPressed: () => BrandProfileSheet.show(context),
+              icon: Icon(
+                isPro ? Icons.badge_outlined : Icons.lock_outline,
+                size: 18,
+              ),
+              label: const Text('Brand profiles'),
             ),
             const SizedBox(height: 24),
             Text(

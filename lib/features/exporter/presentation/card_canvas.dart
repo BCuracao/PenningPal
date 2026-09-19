@@ -48,16 +48,7 @@ class CardCanvas extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = text.trim();
     final gatedTheme = theme.enforcedFor(isProPurchased: isProPurchased);
-    final decoration = BoxDecoration(
-      color: gatedTheme.backgroundColor,
-      gradient: gatedTheme.backgroundGradient,
-      border: gatedTheme.variant == CardTemplateVariant.plain
-          ? Border.all(
-              color: gatedTheme.accentColor.withValues(alpha: 0.45),
-              width: 3,
-            )
-          : null,
-    );
+    final border = gatedTheme.resolvedBorder;
 
     final showPagination = totalSlides != null && totalSlides! > 1;
     final slideIndex = currentSlideIndex ?? 0;
@@ -68,40 +59,60 @@ class CardCanvas extends StatelessWidget {
         key: const Key('card-canvas'),
         width: aspectRatio.width,
         height: aspectRatio.height,
-        child: DecoratedBox(
-          decoration: decoration,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: gatedTheme.variant == CardTemplateVariant.terminal
-                    ? _TerminalCard(
-                        theme: gatedTheme,
-                        text: body,
-                        author: author,
-                        authorHandle: authorHandle,
-                      )
-                    : _PlainCard(
-                        theme: gatedTheme,
-                        text: body,
-                        author: author,
-                        authorHandle: authorHandle,
-                      ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: gatedTheme.backgroundColor,
+                  gradient: gatedTheme.backgroundGradient,
+                ),
               ),
-              if (showPagination)
-                Positioned(
-                  top: CardLayout.verticalPadding + 16,
-                  right: CardLayout.padding * 0.55,
-                  child: _PaginationBadge(
-                    label: CarouselDeck.formatPagination(
-                      slideIndex,
-                      totalSlides!,
+            ),
+            for (final overlay in gatedTheme.overlayGradients)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(gradient: overlay),
+                ),
+              ),
+            Positioned.fill(
+              child: gatedTheme.variant == CardTemplateVariant.terminal
+                  ? _TerminalCard(
+                      theme: gatedTheme,
+                      text: body,
+                      author: author,
+                      authorHandle: authorHandle,
+                    )
+                  : _PlainCard(
+                      theme: gatedTheme,
+                      text: body,
+                      author: author,
+                      authorHandle: authorHandle,
                     ),
-                    foreground: gatedTheme.textColor,
-                    fontFamily: gatedTheme.fontFamily,
+            ),
+            if (border != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(border: border),
                   ),
                 ),
-            ],
-          ),
+              ),
+            if (showPagination)
+              Positioned(
+                top: CardLayout.verticalPadding + 16,
+                right: CardLayout.padding * 0.55,
+                child: _PaginationBadge(
+                  label: CarouselDeck.formatPagination(
+                    slideIndex,
+                    totalSlides!,
+                  ),
+                  foreground: gatedTheme.textColor,
+                  fontFamily: gatedTheme.fontFamily,
+                ),
+              ),
+          ],
         ),
       ),
     );
