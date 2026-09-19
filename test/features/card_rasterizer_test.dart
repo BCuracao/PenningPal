@@ -272,6 +272,7 @@ void main() {
       expect(find.text(draft), findsOneWidget);
       expect(find.text('Share Image'), findsOneWidget);
       expect(find.text('Save Image'), findsOneWidget);
+      expect(find.text('Copy Card'), findsOneWidget);
       expect(find.byKey(const Key('card-char-meter')), findsOneWidget);
       expect(find.byKey(const Key('card-overflow-warning')), findsNothing);
 

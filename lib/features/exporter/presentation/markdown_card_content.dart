@@ -54,16 +54,33 @@ class MarkdownCardContent extends StatelessWidget {
   }
 
   static double _gapAfter(_CardMdBlock block) {
-    if (block is _HeadingBlock) return 12;
-    if (block is _QuoteBlock) return 20;
-    if (block is _ListBlock) return 16;
-    return 18;
+    if (block is _HeadingBlock) {
+      return switch (block.level) {
+        1 => 28,
+        2 => 22,
+        _ => 18,
+      };
+    }
+    if (block is _QuoteBlock) return 28;
+    if (block is _ListBlock) return 24;
+    return 26;
   }
 }
 
-/// Type scale for rendered card markdown. Sizes are 1080px-canvas points
-/// multiplied by [fontScale].
+/// Type scale for rendered card markdown. Sizes are 1080px-canvas pixels
+/// multiplied by [fontScale] — not mobile/desktop points.
 class CardMarkdownStyles {
+  static const double h1Size = 78;
+  static const double h2Size = 60;
+  static const double h3Size = 48;
+  static const double bodySize = 38;
+  static const double quoteSize = 42;
+  static const double codeSize = 32;
+  static const double quoteBorderWidth = 6;
+  static const double quotePadding = 28;
+  static const double listItemGap = 18;
+  static const double bulletColumnWidth = 48;
+
   const CardMarkdownStyles({
     required this.h1,
     required this.h2,
@@ -102,32 +119,33 @@ class CardMarkdownStyles {
     final paragraph = cardTypeStyle(
       fontFamily: fontFamily,
       color: text,
-      fontSize: 22 * scale,
+      fontSize: bodySize * scale,
       fontWeight: FontWeight.w400,
-      height: 1.45,
+      height: 1.55,
     );
     return CardMarkdownStyles(
       h1: cardTypeStyle(
         fontFamily: fontFamily,
         color: text,
-        fontSize: 42 * scale,
-        fontWeight: FontWeight.w700,
-        height: 1.15,
-        letterSpacing: -0.5,
+        fontSize: h1Size * scale,
+        fontWeight: FontWeight.w800,
+        height: 1.2,
+        letterSpacing: -0.8,
       ),
       h2: cardTypeStyle(
         fontFamily: fontFamily,
         color: text,
-        fontSize: 32 * scale,
+        fontSize: h2Size * scale,
         fontWeight: FontWeight.w700,
-        height: 1.2,
+        height: 1.25,
+        letterSpacing: -0.5,
       ),
       h3: cardTypeStyle(
         fontFamily: fontFamily,
         color: text,
-        fontSize: 26 * scale,
+        fontSize: h3Size * scale,
         fontWeight: FontWeight.w600,
-        height: 1.25,
+        height: 1.3,
       ),
       paragraph: paragraph,
       strong: paragraph.copyWith(
@@ -138,19 +156,19 @@ class CardMarkdownStyles {
       quote: cardTypeStyle(
         fontFamily: fontFamily,
         color: text.withValues(alpha: 0.78),
-        fontSize: 22 * scale,
+        fontSize: quoteSize * scale,
         fontWeight: FontWeight.w400,
         height: 1.45,
         fontStyle: FontStyle.italic,
       ),
       listItem: paragraph,
-      bullet: paragraph.copyWith(fontWeight: FontWeight.w600, height: 1.45),
+      bullet: paragraph.copyWith(fontWeight: FontWeight.w600, height: 1.55),
       inlineCode: cardTypeStyle(
         fontFamily: CardThemeConfig.fontJetBrainsMono,
         color: text,
-        fontSize: 18 * scale,
+        fontSize: codeSize * scale,
         fontWeight: FontWeight.w500,
-        height: 1.35,
+        height: 1.4,
       ),
       inlineCodeBackground: text.withValues(alpha: 0.08),
       accentColor: theme.accentColor,
@@ -218,11 +236,18 @@ final class _QuoteBlock extends _CardMdBlock {
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(
-          left: BorderSide(color: styles.accentColor, width: 4),
+          left: BorderSide(
+            color: styles.accentColor,
+            width: CardMarkdownStyles.quoteBorderWidth,
+          ),
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.only(left: 20, top: 2, bottom: 2),
+        padding: const EdgeInsets.only(
+          left: CardMarkdownStyles.quotePadding,
+          top: 4,
+          bottom: 4,
+        ),
         child: Text.rich(
           TextSpan(
             style: styles.quote,
@@ -248,12 +273,16 @@ final class _ListBlock extends _CardMdBlock {
       children: [
         for (var i = 0; i < items.length; i++)
           Padding(
-            padding: EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 10),
+            padding: EdgeInsets.only(
+              bottom: i == items.length - 1
+                  ? 0
+                  : CardMarkdownStyles.listItemGap,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 36,
+                  width: CardMarkdownStyles.bulletColumnWidth,
                   child: Text('•', style: styles.bullet),
                 ),
                 Expanded(

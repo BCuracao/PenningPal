@@ -45,7 +45,7 @@ lib/
       │
       ├──> [ HTML Engine ]    ──> [ super_clipboard ]   ──> System Clipboard (Substack)
       │
-      └──> [ Card Exporter ]  ──> [ RepaintBoundary ]   ──> Image Rasterizer ──> Native Share
+      └──> [ Card Exporter ]  ──> [ RepaintBoundary ]   ──> Image Rasterizer ──> Native Share / Photos / PNG Clipboard
 ```
 
 ---
@@ -81,7 +81,8 @@ lib/
   * Vertical: 1080 × 1920 px
 * **Rasterization Process**: Card widgets are scaled using `Transform.scale` to ensure consistent rendering metrics regardless of physical device DPI, rasterized to `dart:ui.Image`, and converted to PNG byte arrays.
 * **Carousel Decks**: Scratchpad drafts split on markdown thematic breaks (`---`, `***`, `___`, 3+ markers) across LF / CRLF / CR. Batch export presents each slide sequentially off-screen at identical dimensions and DPI, then shares or saves every PNG together. Watermark / Pro gating is applied per slide via `isProPurchased`.
-* **Rich Card Typography**: `MarkdownCardContent` paints headings, emphasis, blockquotes, lists, and inline code as widgets — raw `#` / `**` / `>` never appear on the canvas. Fenced blocks still go through `SyntaxCardBlock`. Type scale is `CardLayout.fontScaleFor` (1.25× / 1.0× / 0.82× / 0.7× by character length) with a FittedBox clip guard; there is no 280-character tweet cap.
+* **Rich Card Typography**: `MarkdownCardContent` paints headings, emphasis, blockquotes, lists, and inline code as widgets — raw `#` / `**` / `>` never appear on the canvas. Fenced blocks still go through `SyntaxCardBlock`. Type is sized for a 1080px canvas (H1 78px / body 38px / code 32px) then multiplied by `CardLayout.fontScaleFor` (1.35× / 1.1× / 0.95× / 0.82× by character length). Body copy is vertically centered between the author header and watermark; insets are 84×64. A FittedBox clip guard keeps long slides on-canvas; there is no 280-character tweet cap.
+* **Inspect & Clipboard**: Tapping the live preview opens a full-screen `InteractiveViewer` inspect modal (pinch-zoom 0.8×–4.0×) so typography and syntax highlighting can be checked at export resolution. **Copy Card** rasterizes the visible slide and writes raw PNG bytes through `super_clipboard` (`Formats.png`) for pasting into Stories, X, LinkedIn, and messaging apps. A glassmorphism overlay reports rasterization progress (`Rendering 1080px card...` / `Preparing slide N of M...`) and blocks duplicate taps.
 * **Code Cards**: Fenced markdown (` ```[lang] `) is parsed on-device into prose + code segments. `SyntaxCardBlock` paints JetBrains Mono with Atom One Dark (Terminal / Midnight) or GitHub Light (Minimal); unknown or missing language tags fall back to plain monospace. Highlighting uses bundled `flutter_highlight` / `highlight` — no network.
 
 ### 4.4. Entitlement Gating (`lib/features/paywall/`)

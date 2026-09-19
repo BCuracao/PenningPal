@@ -322,7 +322,7 @@ void main() {
       await tester.pump();
 
       expect(find.byKey(const Key('carousel-export-progress')), findsOneWidget);
-      expect(find.text('Exporting slide 1 of 3...'), findsOneWidget);
+      expect(find.text('Preparing slide 1 of 3...'), findsOneWidget);
 
       batch.release.complete(batch.pngs);
       await tester.pump();
@@ -472,6 +472,7 @@ class _FakeBatchExporter extends CarouselBatchExporter {
     bool isProPurchased, {
     required BuildContext context,
     String? author,
+    String? authorHandle,
     void Function(int current, int total)? onProgress,
   }) async {
     calls += 1;
@@ -499,6 +500,7 @@ class _GatedBatchExporter extends CarouselBatchExporter {
     bool isProPurchased, {
     required BuildContext context,
     String? author,
+    String? authorHandle,
     void Function(int current, int total)? onProgress,
   }) async {
     onProgress?.call(1, 3);

@@ -25,6 +25,7 @@
 - [x] Task 3.4: Implement Multi-Slide Carousel splitting, pagination badges, and batch export.
 - [x] Task 3.5: Implement on-device syntax highlighting for code cards and terminal templates.
 - [x] Task 3.6: Implement rich Markdown card rendering, auto-scaling typography, and hardened carousel splitting.
+- [x] Task 3.7: Implement Copy Image to Clipboard via super_clipboard and interactive pinch-to-zoom inspect.
 - [x] Task 4.1: Integrate RevenueCat lifetime paywall gate.
 - [x] Task 4.2: Configure App branding (SocialSlate), offline legal pages, launcher icons, and release ProGuard rules.
 - [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
@@ -222,3 +223,22 @@
 - Verified: iOS `AppIcon.appiconset` PNGs are RGB with no alpha; Android `mipmap-{m,h,xh,xxh,xxxh}dpi` contain `launcher_icon.png` plus adaptive foreground/background drawables.
 - Modified: `tool/generate_penningpal_icon.dart`, `assets/icon/*`, `pubspec.yaml`, `android/app/src/main/AndroidManifest.xml`, generated `ios/Runner/Assets.xcassets/` and `android/app/src/main/res/` mipmaps/splash, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: none for icons; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-19 — Card exporter typography & vertical pacing overhaul
+- Recalibrated card type for a 1080px canvas (not mobile/desktop points): H1 78px/w800, H2 60px/w700, H3 48px/w600, body 38px/1.55, blockquote 42px italic with a 6px/28px accent rule, lists 38px with 18px item gaps, code 32px/1.4.
+- `CardLayout.fontScaleFor` now buckets `<140 → 1.35×`, `140–349 → 1.1×`, `350–700 → 0.95×`, `>700 → 0.82×` (floor so long posts stay legible). Insets are 84px horizontal and 64px vertical.
+- `CardCanvas` vertically centers markdown between the author header and watermark so 9:16 Story cards fill the middle third instead of hugging the top. Author name is 32px/w700, handle 26px muted, watermark 24px muted. Name + handle both stamp when set in Settings.
+- Preview `FittedBox` still scales the 1080px raster canvas into the phone slot; live type is readable without zooming.
+- Tests: `test/features/card_typography_test.dart` updated for the new scale buckets, canvas type sizes, story centering, and preview fit. `flutter test` 239 passed; `flutter analyze lib test` clean.
+- Modified: `lib/features/exporter/{templates/card_theme_config,presentation/{markdown_card_content,card_canvas,syntax_card_block,card_exporter_screen},render/carousel_batch_exporter}.dart`, `lib/core/persistence/settings_storage.dart`, `lib/features/scratchpad/presentation/export_toolbar.dart`, `test/features/{card_typography_test,carousel_deck_test,draft_storage_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for typography; still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-19 — Task 3.7: Copy card to clipboard, inspect zoom, render overlay
+- `CardExportService.copyImageToClipboard` writes raw PNG bytes through `super_clipboard` (`DataWriterItem` + `Formats.png`) and returns `false` when the clipboard is unavailable. Copy always rasterizes the currently visible slide, including carousels.
+- Exporter action bar adds **Copy Card** (clipboard icon). Success fires `HapticFeedback.mediumImpact()` and a floating toast: “Card copied to clipboard! Ready to paste.”
+- Tapping the live preview opens `CardInspectModal`: `Colors.black87` backdrop, centered `InteractiveViewer` (0.8×–4.0×), close button, and swipe-down to dismiss. Inspect uses a separate canvas so pan/zoom never mutates the rasterization `RepaintBoundary`.
+- Glassmorphism overlay (`BackdropFilter` blur 4) with spinner + status (“Rendering 1080px card...” / “Preparing slide N of M...”) while rasterizing; action buttons ignore extra taps.
+- Android: declared `super_native_extensions` `DataProvider` so PNG clipboard writes work on-device.
+- Tests: `test/features/card_clipboard_test.dart` — successful PNG write, invalid buffer, missing clipboard, Copy Card toast, carousel current-slide copy, tap-to-zoom inspect route. `flutter test` 246 passed; `flutter analyze lib test` clean.
+- Modified: `lib/features/exporter/render/card_export_service.dart`, `lib/features/exporter/presentation/{card_exporter_screen,card_inspect_modal}.dart`, `android/app/src/main/AndroidManifest.xml`, `test/features/{card_clipboard_test,card_export_service_test,carousel_deck_test,card_rasterizer_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: none for copy/inspect; still replace RevenueCat placeholder keys before store shipping.

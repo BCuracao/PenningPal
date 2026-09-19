@@ -19,6 +19,7 @@ class CardCanvas extends StatelessWidget {
     required this.aspectRatio,
     required this.theme,
     this.author,
+    this.authorHandle,
     this.isProPurchased = false,
     this.currentSlideIndex,
     this.totalSlides,
@@ -31,6 +32,7 @@ class CardCanvas extends StatelessWidget {
   final CardAspectRatio aspectRatio;
   final CardThemeConfig theme;
   final String? author;
+  final String? authorHandle;
 
   /// Reactive entitlement. When `false`, the watermark is forced on regardless
   /// of [CardThemeConfig.showWatermark] so UI state cannot bypass the gate.
@@ -76,11 +78,13 @@ class CardCanvas extends StatelessWidget {
                         theme: gatedTheme,
                         text: body,
                         author: author,
+                        authorHandle: authorHandle,
                       )
                     : _PlainCard(
                         theme: gatedTheme,
                         text: body,
                         author: author,
+                        authorHandle: authorHandle,
                       ),
               ),
               if (showPagination)
@@ -109,15 +113,17 @@ class _PlainCard extends StatelessWidget {
     required this.theme,
     required this.text,
     required this.author,
+    required this.authorHandle,
   });
 
   final CardThemeConfig theme;
   final String text;
   final String? author;
+  final String? authorHandle;
 
   @override
   Widget build(BuildContext context) {
-    final handle = author?.trim();
+    final identity = resolveCardAuthor(author, authorHandle);
     final muted = theme.textColor.withValues(alpha: 0.42);
 
     return Padding(
@@ -134,19 +140,11 @@ class _PlainCard extends StatelessWidget {
             height: CardLayout.headerHeight,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                (handle != null && handle.isNotEmpty) ? handle : 'PenningPal',
-                key: const Key('card-brand-slot'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: cardTypeStyle(
-                  fontFamily: theme.fontFamily,
-                  color: theme.accentColor,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.4,
-                  height: 1.2,
-                ),
+              child: _AuthorHeader(
+                name: identity.name,
+                handle: identity.handle,
+                theme: theme,
+                muted: muted,
               ),
             ),
           ),
@@ -155,7 +153,7 @@ class _PlainCard extends StatelessWidget {
               text: text,
               theme: theme,
               showCodeChrome: false,
-              chromeTitle: handle,
+              chromeTitle: identity.handle ?? identity.name,
               emptyColor: muted,
             ),
           ),
@@ -172,7 +170,7 @@ class _PlainCard extends StatelessWidget {
                   style: cardTypeStyle(
                     fontFamily: theme.fontFamily,
                     color: muted,
-                    fontSize: 22,
+                    fontSize: CardLayout.watermarkSize,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.4,
                     height: 1.2,
@@ -191,18 +189,19 @@ class _TerminalCard extends StatelessWidget {
     required this.theme,
     required this.text,
     required this.author,
+    required this.authorHandle,
   });
 
   final CardThemeConfig theme;
   final String text;
   final String? author;
+  final String? authorHandle;
 
   @override
   Widget build(BuildContext context) {
     final muted = theme.textColor.withValues(alpha: 0.45);
-    final title = (author != null && author!.trim().isNotEmpty)
-        ? author!.trim()
-        : theme.chromeTitle;
+    final identity = resolveCardAuthor(author, authorHandle);
+    final title = identity.handle ?? identity.name ?? theme.chromeTitle;
     final parsed = const CodeBlockParser().parse(text);
     final useCodeWindow = parsed.hasCode;
 
@@ -213,11 +212,11 @@ class _TerminalCard extends StatelessWidget {
           _TerminalChrome(title: title, accent: theme.accentColor),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               CardLayout.padding,
-              48,
+              useCodeWindow ? CardLayout.verticalPadding : 32,
               CardLayout.padding,
-              32,
+              24,
             ),
             child: _SlideBody(
               text: text,
@@ -235,7 +234,7 @@ class _TerminalCard extends StatelessWidget {
               CardLayout.padding,
               0,
               CardLayout.padding,
-              CardLayout.verticalPadding * 0.6,
+              CardLayout.verticalPadding,
             ),
             child: Text(
               CardLayout.watermarkLabel,
@@ -245,7 +244,7 @@ class _TerminalCard extends StatelessWidget {
               style: cardTypeStyle(
                 fontFamily: theme.fontFamily,
                 color: muted,
-                fontSize: 20,
+                fontSize: CardLayout.watermarkSize,
                 fontWeight: FontWeight.w400,
                 height: 1.2,
               ),
@@ -282,7 +281,7 @@ class _TerminalChrome extends StatelessWidget {
                   style: cardTypeStyle(
                     fontFamily: CardThemeConfig.fontJetBrainsMono,
                     color: accent.withValues(alpha: 0.85),
-                    fontSize: 26,
+                    fontSize: CardLayout.authorNameSize,
                     fontWeight: FontWeight.w500,
                     height: 1.2,
                   ),
@@ -383,18 +382,20 @@ class _SlideBody extends StatelessWidget {
     final segments = parsed ?? const CodeBlockParser().parse(text);
 
     if (text.trim().isEmpty) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Start writing…',
-          key: const Key('card-body-text'),
-          textAlign: TextAlign.left,
-          style: cardTypeStyle(
-            fontFamily: theme.fontFamily,
-            color: emptyColor,
-            fontSize: 22 * scale,
-            fontWeight: FontWeight.w500,
-            height: 1.45,
+      return Center(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Start writing…',
+            key: const Key('card-body-text'),
+            textAlign: TextAlign.left,
+            style: cardTypeStyle(
+              fontFamily: theme.fontFamily,
+              color: emptyColor,
+              fontSize: CardMarkdownStyles.bodySize * scale,
+              fontWeight: FontWeight.w500,
+              height: 1.55,
+            ),
           ),
         ),
       );
@@ -446,11 +447,10 @@ class _SlideBody extends StatelessWidget {
           }
         }
 
-        return Align(
-          alignment: Alignment.topLeft,
+        return Center(
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.topLeft,
+            alignment: Alignment.center,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: constraints.maxWidth),
               child: SizedBox(
@@ -483,4 +483,92 @@ class _TrafficDot extends StatelessWidget {
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
+}
+
+class _AuthorHeader extends StatelessWidget {
+  const _AuthorHeader({
+    required this.name,
+    required this.handle,
+    required this.theme,
+    required this.muted,
+  });
+
+  final String? name;
+  final String? handle;
+  final CardThemeConfig theme;
+  final Color muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasName = name != null && name!.isNotEmpty;
+    final hasHandle = handle != null && handle!.isNotEmpty;
+
+    return Column(
+      key: const Key('card-brand-slot'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasName)
+          Text(
+            name!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: cardTypeStyle(
+              fontFamily: theme.fontFamily,
+              color: theme.textColor,
+              fontSize: CardLayout.authorNameSize,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+          ),
+        if (hasHandle)
+          Padding(
+            padding: EdgeInsets.only(top: hasName ? 4 : 0),
+            child: Text(
+              handle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: cardTypeStyle(
+                fontFamily: theme.fontFamily,
+                color: muted,
+                fontSize: CardLayout.authorHandleSize,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Splits the legacy single [author] string plus optional [authorHandle]
+/// into a name / handle pair for the canvas header.
+({String? name, String? handle}) resolveCardAuthor(
+  String? author,
+  String? authorHandle,
+) {
+  final rawName = author?.trim();
+  final rawHandle = authorHandle?.trim();
+
+  String? name;
+  String? handle;
+
+  if (rawHandle != null && rawHandle.isNotEmpty) {
+    handle = rawHandle.startsWith('@') ? rawHandle : '@$rawHandle';
+  }
+
+  if (rawName != null && rawName.isNotEmpty) {
+    if (rawName.startsWith('@')) {
+      handle ??= rawName;
+    } else {
+      name = rawName;
+    }
+  }
+
+  if (name == null && handle == null) {
+    name = 'PenningPal';
+  }
+
+  return (name: name, handle: handle);
 }

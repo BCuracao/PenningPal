@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 
 import 'card_rasterizer.dart';
 
@@ -28,6 +29,9 @@ typedef ShareCardFiles = Future<void> Function(
   Rect? sharePositionOrigin,
 });
 
+/// Writes raw PNG bytes to the system clipboard. Returns `false` on failure.
+typedef ClipboardPngWriter = Future<bool> Function(Uint8List pngBytes);
+
 /// Local-only PNG export: temp cache, Camera Roll, and the system share sheet.
 ///
 /// Never uploads bytes. Gallery permission failures return `false` instead of
@@ -39,6 +43,7 @@ class CardExportService {
     this.hasGalleryAccess,
     this.requestGalleryAccess,
     this.shareFiles,
+    this.writePngToClipboard,
   });
 
   /// Album created in Photos when saving a card.
@@ -61,6 +66,9 @@ class CardExportService {
 
   /// Override for tests. Defaults to [SharePlus.instance.share].
   final ShareCardFiles? shareFiles;
+
+  /// Override for tests. Defaults to `super_clipboard` [Formats.png].
+  final ClipboardPngWriter? writePngToClipboard;
 
   /// Timestamped PNG name, e.g. `clean_canvas_20260918_150407.png`.
   static String generateFilename({DateTime? now}) {
@@ -209,6 +217,17 @@ class CardExportService {
     return saved;
   }
 
+  /// Copies [pngBytes] to the system clipboard as `image/png`.
+  ///
+  /// Returns `true` when the write succeeds. Returns `false` when the buffer
+  /// is not a PNG, the native clipboard is unavailable, or the plugin throws
+  /// (test harness / unsupported desktop).
+  Future<bool> copyImageToClipboard(Uint8List pngBytes) async {
+    if (!isValidPngBytes(pngBytes)) return false;
+    final writer = writePngToClipboard ?? _writePngToSystemClipboard;
+    return writer(pngBytes);
+  }
+
   /// Writes a temp PNG and opens the native share sheet.
   Future<void> shareCardImage(
     Uint8List byteData, {
@@ -247,6 +266,19 @@ class CardExportService {
       return;
     }
     await Gal.putImageBytes(bytes, album: album, name: name);
+  }
+
+  Future<bool> _writePngToSystemClipboard(Uint8List pngBytes) async {
+    try {
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) return false;
+      final item = DataWriterItem();
+      item.add(Formats.png(pngBytes));
+      await clipboard.write([item]);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Native share sheet. Equivalent to `Share.shareXFiles([XFile(path)])`.

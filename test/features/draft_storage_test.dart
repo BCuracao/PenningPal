@@ -265,7 +265,9 @@ void main() {
     test('formats handle, initials, and fallbacks', () {
       expect(const CardSettings(authorHandle: 'canvas').formattedAuthor, '@canvas');
       expect(const CardSettings(authorHandle: '@canvas').formattedAuthor, '@canvas');
+      expect(const CardSettings(authorHandle: 'canvas').formattedHandle, '@canvas');
       expect(const CardSettings(authorName: 'Ada Lovelace').formattedAuthor, 'Ada Lovelace');
+      expect(const CardSettings(authorName: 'Ada Lovelace').formattedHandle, isNull);
       expect(const CardSettings(authorName: 'Ada Lovelace').initials, 'AL');
       expect(const CardSettings().formattedAuthor, isNull);
       expect(const CardSettings().initials, '?');

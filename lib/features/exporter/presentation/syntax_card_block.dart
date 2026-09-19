@@ -32,11 +32,12 @@ class SyntaxCardBlock extends StatelessWidget {
   SyntaxCardPalette get palette => SyntaxCardPalette.forTheme(theme);
 
   /// Fits monospace glyphs into [maxWidth] so long lines stay on-canvas.
+  /// Base sizes are 1080px-canvas pixels (30–34px), not mobile points.
   static double fontSizeFor({
     required String code,
     required double maxWidth,
-    double minSize = 16,
-    double maxSize = 28,
+    double minSize = 24,
+    double maxSize = 32,
   }) {
     final lines = code.split('\n');
     var longest = 0;
@@ -61,7 +62,7 @@ class SyntaxCardBlock extends StatelessWidget {
       TextStyle(
         color: colors.foreground,
         fontSize: fontSize,
-        height: 1.45,
+        height: 1.4,
         fontWeight: FontWeight.w400,
       ),
     );

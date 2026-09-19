@@ -19,13 +19,18 @@ class CardSettings {
   /// Handle preferred, then name. `null` when both are empty so the canvas
   /// can fall back to its built-in brand slot.
   String? get formattedAuthor {
-    final handle = authorHandle.trim();
-    if (handle.isNotEmpty) {
-      return handle.startsWith('@') ? handle : '@$handle';
-    }
+    final handle = formattedHandle;
+    if (handle != null) return handle;
     final name = authorName.trim();
     if (name.isNotEmpty) return name;
     return null;
+  }
+
+  /// Normalized `@handle`, or `null` when unset.
+  String? get formattedHandle {
+    final handle = authorHandle.trim();
+    if (handle.isEmpty) return null;
+    return handle.startsWith('@') ? handle : '@$handle';
   }
 
   String get initials {

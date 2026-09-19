@@ -183,38 +183,50 @@ abstract final class CardPresets {
 }
 
 /// Padding and type scale used by [CardCanvas] at the fixed 1080px width.
+///
+/// Sizes are canvas pixels (not mobile/desktop points). Body copy on a
+/// 1080px-wide card should sit in the 36–42px range so FittedBox previews
+/// stay readable without zooming.
 abstract final class CardLayout {
   /// Horizontal inset on the 1080px canvas.
-  static const double padding = 64;
+  static const double padding = 84;
 
-  /// Vertical inset on the 1080px canvas.
-  static const double verticalPadding = 48;
-  static const double headerHeight = 88;
+  /// Vertical header/footer inset on the 1080px canvas.
+  static const double verticalPadding = 64;
+  static const double headerHeight = 104;
   static const double footerHeight = 72;
   static const String watermarkLabel = 'Made with PenningPal';
 
-  static const double punchyScale = 1.25;
-  static const double standardScale = 1.0;
-  static const double longFormScale = 0.82;
-  static const double denseScale = 0.7;
+  static const double authorNameSize = 32;
+  static const double authorHandleSize = 26;
+  static const double watermarkSize = 24;
+
+  static const double punchyScale = 1.35;
+  static const double standardScale = 1.1;
+  static const double longFormScale = 0.95;
+  static const double denseScale = 0.82;
+
+  static const int punchyMaxChars = 140;
+  static const int standardMaxChars = 350;
+  static const int longFormMaxChars = 700;
 
   static double contentWidth(CardAspectRatio ratio) =>
       ratio.width - (padding * 2);
 
   /// Dynamic type multiplier from slide character length.
   ///
-  /// Short quotes scale up so they fill the canvas; long-form copy scales
-  /// down so it stays unclipped without a 280-character tweet cap.
+  /// Punchy one-liners scale up so they fill the canvas; long-form copy
+  /// scales down but never below [denseScale] so type stays legible.
   static double fontScaleFor(String text) {
     final length = text.trim().length;
-    if (length < 120) return punchyScale;
-    if (length < 350) return standardScale;
-    if (length <= 650) return longFormScale;
+    if (length < punchyMaxChars) return punchyScale;
+    if (length < standardMaxChars) return standardScale;
+    if (length <= longFormMaxChars) return longFormScale;
     return denseScale;
   }
 
   static double fontSizeFor(String text, CardAspectRatio ratio) {
-    final base = ratio == CardAspectRatio.square ? 36.0 : 42.0;
+    final base = ratio == CardAspectRatio.square ? 38.0 : 42.0;
     return base * fontScaleFor(text);
   }
 }

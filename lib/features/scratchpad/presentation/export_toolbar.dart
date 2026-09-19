@@ -145,10 +145,15 @@ class ExportToolbar extends ConsumerWidget {
 
   void _openCardExporter(BuildContext context, WidgetRef ref) {
     final draft = ref.read(scratchpadProvider).content;
-    final author = ref.read(cardSettingsProvider).formattedAuthor;
+    final settings = ref.read(cardSettingsProvider);
+    final name = settings.authorName.trim();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CardExporterScreen(text: draft, author: author),
+        builder: (_) => CardExporterScreen(
+          text: draft,
+          author: name.isNotEmpty ? name : null,
+          authorHandle: settings.formattedHandle,
+        ),
       ),
     );
   }

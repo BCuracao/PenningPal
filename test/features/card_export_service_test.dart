@@ -311,7 +311,9 @@ void main() {
       await tester.tap(find.byKey(const Key('share-card-png')));
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(find.byKey(const Key('export-progress-overlay')), findsOneWidget);
+      expect(find.text('Rendering 1080px card...'), findsOneWidget);
       expect(
         tester
             .widget<FilledButton>(find.byKey(const Key('share-card-png')))
@@ -324,8 +326,17 @@ void main() {
             .onPressed,
         isNull,
       );
+      expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const Key('copy-card-png')))
+            .onPressed,
+        isNull,
+      );
 
-      await tester.tap(find.byKey(const Key('save-card-gallery')));
+      await tester.tap(
+        find.byKey(const Key('save-card-gallery')),
+        warnIfMissed: false,
+      );
       rasterizer.release.complete(rasterizer.png);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));

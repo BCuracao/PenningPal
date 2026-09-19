@@ -31,6 +31,7 @@ class CarouselBatchExporter {
     bool isProPurchased, {
     required BuildContext context,
     String? author,
+    String? authorHandle,
     void Function(int current, int total)? onProgress,
   }) async {
     final presenter = _SlidePresenter(
@@ -55,6 +56,7 @@ class CarouselBatchExporter {
                   aspectRatio: ratio,
                   theme: config,
                   author: author,
+                  authorHandle: authorHandle,
                   isProPurchased: isProPurchased,
                   currentSlideIndex: presenter.index,
                   totalSlides: deck.totalSlides,
