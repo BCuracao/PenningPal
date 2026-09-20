@@ -262,3 +262,8 @@
 - Tests: `test/features/custom_background_test.dart`. `flutter analyze lib test` clean; `flutter test` 279 passed.
 - Modified: `lib/features/exporter/{templates/card_theme_config,presentation/{card_canvas,card_customizer_controls,card_exporter_screen},render/{photo_backdrop_store,carousel_batch_exporter}}.dart`, `lib/features/paywall/paywall_bottom_sheet.dart`, `pubspec.yaml`, iOS `Info.plist`, Android `AndroidManifest.xml`, tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still replace RevenueCat placeholder keys before store shipping; set `kDemoModeBypassPaywall` to `false` before production submission.
+
+### 2026-09-20 — GitHub README
+- Replaced the Flutter starter README with a product-facing overview for PenningPal: what it does, scratchpad/export/card features, Free vs Pro, privacy, stack, local run instructions, and store-shipping notes for maintainers.
+- Clarifies that the public GitHub remote remains `BCuracao/SocialSlate` while the shipped name is PenningPal.
+- Modified: `README.md`, `PROJECT_JOURNAL.md`.
