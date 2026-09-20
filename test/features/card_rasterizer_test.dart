@@ -119,7 +119,12 @@ void main() {
 
     test('enforcedFor forces the watermark when the user is not Pro', () {
       final stripped = CardPresets.minimalClean.copyWith(showWatermark: false);
-      expect(stripped.enforcedFor(isProPurchased: false).showWatermark, isTrue);
+      final free = stripped.enforcedFor(isProPurchased: false);
+      if (canAccessProFeature(isProPurchased: false)) {
+        expect(free.showWatermark, isFalse);
+      } else {
+        expect(free.showWatermark, isTrue);
+      }
       expect(stripped.enforcedFor(isProPurchased: true).showWatermark, isFalse);
     });
 

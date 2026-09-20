@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/app_config.dart';
+
 /// Social-export canvas size. Layout is always these logical pixels so
 /// rasterization is independent of device screen size and DPI.
 enum CardAspectRatio {
@@ -20,6 +22,9 @@ enum CardAspectRatio {
   Size get size => Size(width, height);
 }
 
+/// Sentinel so [CardThemeConfig.copyWith] can clear [customBackgroundImagePath].
+const Object _unsetCustomBackground = Object();
+
 /// Visual identity of a card template. Pure presentation config — no state.
 class CardThemeConfig {
   const CardThemeConfig({
@@ -37,10 +42,22 @@ class CardThemeConfig {
     this.isPremium = false,
     this.variant = CardTemplateVariant.plain,
     this.chromeTitle = 'clean-canvas.md',
+    this.customBackgroundImagePath,
+    this.blurSigma = defaultBlurSigma,
+    this.overlayOpacity = defaultOverlayOpacity,
+    this.isDarkOverlay = true,
   });
 
   static const fontInter = 'Inter';
   static const fontJetBrainsMono = 'JetBrains Mono';
+
+  static const double minBlurSigma = 0;
+  static const double maxBlurSigma = 30;
+  static const double defaultBlurSigma = 12;
+
+  static const double minOverlayOpacity = 0.2;
+  static const double maxOverlayOpacity = 0.85;
+  static const double defaultOverlayOpacity = 0.5;
 
   final String id;
   final String name;
@@ -73,7 +90,44 @@ class CardThemeConfig {
   /// Filename shown in the Dev Terminal title bar.
   final String chromeTitle;
 
+  /// Absolute on-device path of a user-picked photo backdrop.
+  /// Never uploaded; lives in temp or application-support storage.
+  final String? customBackgroundImagePath;
+
+  /// Gaussian blur sigma applied to [customBackgroundImagePath] (`0`–`30`).
+  final double blurSigma;
+
+  /// Contrast scrim opacity over the photo (`0.2`–`0.85`).
+  final double overlayOpacity;
+
+  /// Dark scrim (white type) vs light scrim (dark type).
+  final bool isDarkOverlay;
+
   bool get isMonospace => fontFamily == fontJetBrainsMono;
+
+  bool get hasCustomBackground {
+    final path = customBackgroundImagePath;
+    return path != null && path.isNotEmpty;
+  }
+
+  /// Blur clamped to the interactive slider range.
+  double get resolvedBlurSigma => blurSigma.clamp(minBlurSigma, maxBlurSigma);
+
+  /// Scrim opacity clamped so type stays legible.
+  double get resolvedOverlayOpacity =>
+      overlayOpacity.clamp(minOverlayOpacity, maxOverlayOpacity);
+
+  /// Foreground type when a photo backdrop is active.
+  Color get photoAwareTextColor {
+    if (!hasCustomBackground) return textColor;
+    return isDarkOverlay ? const Color(0xFFF8FAFC) : const Color(0xFF1F2937);
+  }
+
+  /// Always-on contrast tint painted over the blurred photo.
+  Color get photoScrimColor {
+    final base = isDarkOverlay ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+    return base.withValues(alpha: resolvedOverlayOpacity);
+  }
 
   bool get isCustom => id == CardPresets.customId;
 
@@ -92,10 +146,26 @@ class CardThemeConfig {
   }
 
   /// Hard render gate: free users always keep the watermark even if a caller
-  /// passes `showWatermark: false`.
+  /// passes `showWatermark: false`. Custom photo backdrops are also stripped.
+  /// [kDemoModeBypassPaywall] is the single demo switch that lets recordings
+  /// unlock Pro chrome without a purchase.
   CardThemeConfig enforcedFor({required bool isProPurchased}) {
-    if (isProPurchased) return this;
-    return copyWith(showWatermark: true);
+    if (canAccessProFeature(isProPurchased: isProPurchased)) return this;
+    return copyWith(
+      showWatermark: true,
+      customBackgroundImagePath: null,
+    );
+  }
+
+  /// Copies watermark + photo-backdrop chrome from [other] onto this preset.
+  CardThemeConfig withExporterChrome(CardThemeConfig other) {
+    return copyWith(
+      showWatermark: other.showWatermark,
+      customBackgroundImagePath: other.customBackgroundImagePath,
+      blurSigma: other.blurSigma,
+      overlayOpacity: other.overlayOpacity,
+      isDarkOverlay: other.isDarkOverlay,
+    );
   }
 
   CardThemeConfig copyWith({
@@ -113,6 +183,10 @@ class CardThemeConfig {
     bool? isPremium,
     CardTemplateVariant? variant,
     String? chromeTitle,
+    Object? customBackgroundImagePath = _unsetCustomBackground,
+    double? blurSigma,
+    double? overlayOpacity,
+    bool? isDarkOverlay,
   }) {
     return CardThemeConfig(
       id: id ?? this.id,
@@ -129,6 +203,15 @@ class CardThemeConfig {
       isPremium: isPremium ?? this.isPremium,
       variant: variant ?? this.variant,
       chromeTitle: chromeTitle ?? this.chromeTitle,
+      customBackgroundImagePath: identical(
+            customBackgroundImagePath,
+            _unsetCustomBackground,
+          )
+          ? this.customBackgroundImagePath
+          : customBackgroundImagePath as String?,
+      blurSigma: blurSigma ?? this.blurSigma,
+      overlayOpacity: overlayOpacity ?? this.overlayOpacity,
+      isDarkOverlay: isDarkOverlay ?? this.isDarkOverlay,
     );
   }
 
@@ -146,7 +229,11 @@ class CardThemeConfig {
         other.showWatermark == showWatermark &&
         other.isPremium == isPremium &&
         other.variant == variant &&
-        other.chromeTitle == chromeTitle;
+        other.chromeTitle == chromeTitle &&
+        other.customBackgroundImagePath == customBackgroundImagePath &&
+        other.blurSigma == blurSigma &&
+        other.overlayOpacity == overlayOpacity &&
+        other.isDarkOverlay == isDarkOverlay;
   }
 
   @override
@@ -163,6 +250,10 @@ class CardThemeConfig {
         isPremium,
         variant,
         chromeTitle,
+        customBackgroundImagePath,
+        blurSigma,
+        overlayOpacity,
+        isDarkOverlay,
       );
 }
 

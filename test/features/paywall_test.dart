@@ -127,8 +127,12 @@ void main() {
         showWatermark: false,
       );
 
-      expect(find.byKey(const Key('card-watermark')), findsOneWidget);
-      expect(find.text(CardLayout.watermarkLabel), findsOneWidget);
+      if (canAccessProFeature(isProPurchased: false)) {
+        expect(find.byKey(const Key('card-watermark')), findsNothing);
+      } else {
+        expect(find.byKey(const Key('card-watermark')), findsOneWidget);
+        expect(find.text(CardLayout.watermarkLabel), findsOneWidget);
+      }
     });
 
     testWidgets('pro users may hide the watermark', (tester) async {
@@ -179,10 +183,15 @@ void main() {
       await tester.tap(find.byKey(const Key('card-template-terminal')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
-      expect(find.byKey(const Key('terminal-traffic-lights')), findsNothing);
-      expect(find.byKey(const Key('paywall-unlock')), findsOneWidget);
-      expect(find.byKey(const Key('paywall-restore')), findsOneWidget);
+      if (kDemoModeBypassPaywall) {
+        expect(find.byKey(const Key('terminal-traffic-lights')), findsOneWidget);
+        expect(find.text('Unlock PenningPal Pro'), findsNothing);
+      } else {
+        expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
+        expect(find.byKey(const Key('terminal-traffic-lights')), findsNothing);
+        expect(find.byKey(const Key('paywall-unlock')), findsOneWidget);
+        expect(find.byKey(const Key('paywall-restore')), findsOneWidget);
+      }
     });
 
     testWidgets('unentitled watermark toggle opens the paywall', (tester) async {
@@ -191,8 +200,13 @@ void main() {
       await tester.tap(find.byKey(const Key('remove-watermark-toggle')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
-      expect(find.byKey(const Key('card-watermark')), findsOneWidget);
+      if (kDemoModeBypassPaywall) {
+        expect(find.text('Unlock PenningPal Pro'), findsNothing);
+        expect(find.byKey(const Key('card-watermark')), findsNothing);
+      } else {
+        expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
+        expect(find.byKey(const Key('card-watermark')), findsOneWidget);
+      }
     });
 
     testWidgets('pro users can select Terminal without a lock', (tester) async {
@@ -254,6 +268,10 @@ void main() {
       );
       expect(
         find.text('Export swipeable LinkedIn PDF carousels'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Custom photo backdrops with blur and contrast scrim'),
         findsOneWidget,
       );
 

@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../models/carousel_deck.dart';
@@ -34,8 +37,9 @@ class CardCanvas extends StatelessWidget {
   final String? author;
   final String? authorHandle;
 
-  /// Reactive entitlement. When `false`, the watermark is forced on regardless
-  /// of [CardThemeConfig.showWatermark] so UI state cannot bypass the gate.
+  /// Raw purchase flag used by callers. Watermark enforcement also honors
+  /// the demo bypass switch so recordings can strip the mark without
+  /// flipping visual lock badges.
   final bool isProPurchased;
 
   /// Zero-based index of this slide when rendering a carousel.
@@ -48,7 +52,11 @@ class CardCanvas extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = text.trim();
     final gatedTheme = theme.enforcedFor(isProPurchased: isProPurchased);
-    final border = gatedTheme.resolvedBorder;
+    final displayTheme = gatedTheme.hasCustomBackground
+        ? gatedTheme.copyWith(textColor: gatedTheme.photoAwareTextColor)
+        : gatedTheme;
+    final border = displayTheme.resolvedBorder;
+    final hasPhoto = displayTheme.hasCustomBackground;
 
     final showPagination = totalSlides != null && totalSlides! > 1;
     final slideIndex = currentSlideIndex ?? 0;
@@ -65,27 +73,37 @@ class CardCanvas extends StatelessWidget {
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: gatedTheme.backgroundColor,
-                  gradient: gatedTheme.backgroundGradient,
+                  color: displayTheme.backgroundColor,
+                  gradient: hasPhoto ? null : displayTheme.backgroundGradient,
                 ),
               ),
             ),
-            for (final overlay in gatedTheme.overlayGradients)
+            if (hasPhoto)
               Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(gradient: overlay),
+                child: _PhotoBackdrop(
+                  path: displayTheme.customBackgroundImagePath!,
+                  blurSigma: displayTheme.resolvedBlurSigma,
+                  scrimColor: displayTheme.photoScrimColor,
+                  cacheLongEdge: _photoDecodeLongEdge(aspectRatio),
                 ),
-              ),
+              )
+            else
+              for (final overlay in displayTheme.overlayGradients)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(gradient: overlay),
+                  ),
+                ),
             Positioned.fill(
-              child: gatedTheme.variant == CardTemplateVariant.terminal
+              child: displayTheme.variant == CardTemplateVariant.terminal
                   ? _TerminalCard(
-                      theme: gatedTheme,
+                      theme: displayTheme,
                       text: body,
                       author: author,
                       authorHandle: authorHandle,
                     )
                   : _PlainCard(
-                      theme: gatedTheme,
+                      theme: displayTheme,
                       text: body,
                       author: author,
                       authorHandle: authorHandle,
@@ -108,13 +126,68 @@ class CardCanvas extends StatelessWidget {
                     slideIndex,
                     totalSlides!,
                   ),
-                  foreground: gatedTheme.textColor,
-                  fontFamily: gatedTheme.fontFamily,
+                  foreground: displayTheme.textColor,
+                  fontFamily: displayTheme.fontFamily,
                 ),
               ),
           ],
         ),
       ),
+    );
+  }
+}
+
+int _photoDecodeLongEdge(CardAspectRatio ratio) {
+  final long = ratio.width > ratio.height ? ratio.width : ratio.height;
+  return (long * 3).round();
+}
+
+/// Full-bleed blurred photo with a contrast scrim so type stays legible
+/// at 1080×1080 and 1080×1920, including high-DPI (`pixelRatio: 3`) export.
+class _PhotoBackdrop extends StatelessWidget {
+  const _PhotoBackdrop({
+    required this.path,
+    required this.blurSigma,
+    required this.scrimColor,
+    required this.cacheLongEdge,
+  });
+
+  final String path;
+  final double blurSigma;
+  final Color scrimColor;
+  final int cacheLongEdge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRect(
+          child: ImageFiltered(
+            key: const Key('card-photo-backdrop'),
+            imageFilter: ui.ImageFilter.blur(
+              sigmaX: blurSigma,
+              sigmaY: blurSigma,
+              tileMode: TileMode.clamp,
+            ),
+            child: Image.file(
+              File(path),
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              alignment: Alignment.center,
+              cacheWidth: cacheLongEdge,
+              filterQuality: FilterQuality.medium,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) => const SizedBox.expand(),
+            ),
+          ),
+        ),
+        ColoredBox(
+          key: const Key('card-photo-scrim'),
+          color: scrimColor,
+        ),
+      ],
     );
   }
 }

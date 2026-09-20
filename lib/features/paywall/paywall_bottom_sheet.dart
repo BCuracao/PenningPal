@@ -124,6 +124,10 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
             label:
                 'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes',
           ),
+          const _BenefitRow(
+            icon: Icons.photo_outlined,
+            label: 'Custom photo backdrops with blur and contrast scrim',
+          ),
           const SizedBox(height: 20),
           DecoratedBox(
             decoration: BoxDecoration(

@@ -350,24 +350,31 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(batch.lastPro, isFalse);
+      expect(batch.lastPro, kDemoModeBypassPaywall);
       expect(find.byKey(const Key('card-watermark')), findsWidgets);
     });
 
     testWidgets('unentitled LinkedIn PDF export opens the paywall',
         (tester) async {
-      await pumpExporter(tester, isPro: false);
+      final batch = _FakeBatchExporter();
+      await pumpExporter(tester, isPro: false, batchExporter: batch);
 
       await tester.ensureVisible(find.byKey(const Key('export-linkedin-pdf')));
       await tester.tap(find.byKey(const Key('export-linkedin-pdf')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
-      expect(
-        find.text('Export swipeable LinkedIn PDF carousels'),
-        findsWidgets,
-      );
-      expect(find.byKey(const Key('paywall-highlight')), findsOneWidget);
+      if (kDemoModeBypassPaywall) {
+        expect(find.text('Unlock PenningPal Pro'), findsNothing);
+        expect(batch.calls, 1);
+      } else {
+        expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
+        expect(
+          find.text('Export swipeable LinkedIn PDF carousels'),
+          findsWidgets,
+        );
+        expect(find.byKey(const Key('paywall-highlight')), findsOneWidget);
+        expect(batch.calls, 0);
+      }
     });
 
     testWidgets('pro LinkedIn PDF export rasterizes then shares a PDF',

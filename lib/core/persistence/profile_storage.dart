@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../config/app_config.dart';
+
 /// Ghostwriter / brand persona stored in the `profiles_box` Hive box.
 class AuthorProfile {
   const AuthorProfile({
@@ -203,7 +205,7 @@ class ProfileStorage {
   }
 
   bool canAddProfile({required bool isProPurchased}) {
-    if (isProPurchased) return true;
+    if (canAccessProFeature(isProPurchased: isProPurchased)) return true;
     return listProfiles().length < freeProfileLimit;
   }
 

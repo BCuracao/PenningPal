@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
@@ -15,11 +16,13 @@ import '../models/carousel_deck.dart';
 import '../render/card_export_service.dart';
 import '../render/card_rasterizer.dart';
 import '../render/carousel_batch_exporter.dart';
+import '../render/photo_backdrop_store.dart';
 import '../state/card_settings.dart';
 import '../templates/card_theme_config.dart';
 import 'brand_color_picker_sheet.dart';
 import 'brand_profile_sheet.dart';
 import 'card_canvas.dart';
+import 'card_customizer_controls.dart';
 import 'card_inspect_modal.dart';
 
 /// Live preview + rasterize flow for visual quote / carousel cards.
@@ -32,6 +35,7 @@ class CardExporterScreen extends ConsumerStatefulWidget {
     this.rasterizer = const CardRasterizer(),
     this.exportService = const CardExportService(),
     this.batchExporter = const CarouselBatchExporter(),
+    this.photoBackdropStore = const PhotoBackdropStore(),
   });
 
   /// Current scratchpad draft. Transformations are not written back.
@@ -48,6 +52,9 @@ class CardExporterScreen extends ConsumerStatefulWidget {
   final CardExportService exportService;
 
   final CarouselBatchExporter batchExporter;
+
+  /// Local photo-library picker. Images stay on-device.
+  final PhotoBackdropStore photoBackdropStore;
 
   @override
   ConsumerState<CardExporterScreen> createState() => _CardExporterScreenState();
@@ -81,7 +88,11 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
 
   bool get _isBusy => _busy != null;
 
-  bool get _isPro => ref.watch(isProPurchasedProvider);
+  /// Actual store entitlement — drives lock icons and Pro chrome.
+  bool get _isProPurchased => ref.watch(isProPurchasedProvider);
+
+  /// Action / render gate. True when purchased or demo bypass is on.
+  bool get _canAccessPro => ref.watch(canAccessProFeatureProvider);
 
   @override
   void initState() {
@@ -96,9 +107,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     _appliedProfileTheme = true;
     final settings = ref.read(cardSettingsProvider);
     final resolved = _themeFromSettings(settings);
-    final isPro = ref.read(isProPurchasedProvider);
-    if (!resolved.isPremium || isPro) {
-      _theme = resolved.copyWith(showWatermark: _theme.showWatermark);
+    if (!resolved.isPremium || ref.read(canAccessProFeatureProvider)) {
+      _theme = resolved.withExporterChrome(_theme);
     }
   }
 
@@ -129,7 +139,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isPro = _isPro;
+    final isProPurchased = _isProPurchased;
+    final canAccessPro = _canAccessPro;
     final settings = ref.watch(cardSettingsProvider);
     final titleStyle = GoogleFonts.inter(
       fontWeight: FontWeight.w600,
@@ -155,38 +166,63 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: _buildPreview(isPro),
+                  child: _buildPreview(canAccessPro),
                 ),
               ),
-              _ProfileSwitcherPill(
-                settings: settings,
-                enabled: !_isBusy,
-                onTap: () => unawaited(_openProfileSwitcher()),
-              ),
-              _CharacterMeter(text: _meterText),
-              _WatermarkToggle(
-                isPro: isPro,
-                removeWatermark: !_theme.showWatermark,
-                onChanged: _onRemoveWatermarkChanged,
-              ),
-              _TemplateCarousel(
-                selected: _theme,
-                isPro: isPro,
-                onSelected: _onThemeSelected,
-              ),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                  child: _ExportActionBar(
-                    busy: _busy,
-                    isCarousel: _deck.isCarousel,
-                    slideCount: _deck.totalSlides,
-                    isPro: isPro,
-                    onShare: _shareCard,
-                    onSave: _saveToPhotos,
-                    onCopy: _copyCard,
-                    onExportPdf: _exportLinkedInPdf,
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _ProfileSwitcherPill(
+                        settings: settings,
+                        enabled: !_isBusy,
+                        onTap: () => unawaited(_openProfileSwitcher()),
+                      ),
+                      _CharacterMeter(text: _meterText),
+                      _WatermarkToggle(
+                        isProPurchased: isProPurchased,
+                        canAccessPro: canAccessPro,
+                        removeWatermark: !_theme.showWatermark,
+                        onChanged: _onRemoveWatermarkChanged,
+                      ),
+                      CardCustomizerControls(
+                        theme: _theme,
+                        isProPurchased: isProPurchased,
+                        canAccessPro: canAccessPro,
+                        enabled: !_isBusy,
+                        onChanged: _onPhotoBackdropChanged,
+                        onPickPhoto: () => unawaited(_pickPhotoBackdrop()),
+                        onLockedFeature: () => unawaited(_promptUpgrade(
+                          highlight:
+                              'Custom photo backdrops with blur and contrast scrim',
+                        )),
+                      ),
+                      _TemplateCarousel(
+                        selected: _theme,
+                        isProPurchased: isProPurchased,
+                        onSelected: _onThemeSelected,
+                      ),
+                      SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                          child: _ExportActionBar(
+                            busy: _busy,
+                            isCarousel: _deck.isCarousel,
+                            slideCount: _deck.totalSlides,
+                            isProPurchased: isProPurchased,
+                            onShare: _shareCard,
+                            onSave: _saveToPhotos,
+                            onCopy: _copyCard,
+                            onExportPdf: _exportLinkedInPdf,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -204,7 +240,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   }
 
   void _onThemeSelected(CardThemeConfig preset) {
-    if (preset.isPremium && !ref.read(isProPurchasedProvider)) {
+    if (preset.isPremium && !ref.read(canAccessProFeatureProvider)) {
       unawaited(_promptUpgrade(
         highlight: preset.isCustom
             ? 'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes'
@@ -217,7 +253,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       return;
     }
     setState(() {
-      _theme = preset.copyWith(showWatermark: _theme.showWatermark);
+      _theme = preset.withExporterChrome(_theme);
     });
     unawaited(
       ref.read(cardSettingsProvider.notifier).update(defaultThemeId: preset.id),
@@ -246,12 +282,12 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       _theme = CardPresets.custom(
         backgroundColor: picked.background,
         textColor: picked.text,
-      ).copyWith(showWatermark: _theme.showWatermark);
+      ).withExporterChrome(_theme);
     });
   }
 
   void _onRemoveWatermarkChanged(bool remove) {
-    if (!ref.read(isProPurchasedProvider)) {
+    if (!ref.read(canAccessProFeatureProvider)) {
       unawaited(_promptUpgrade(
         highlight: "Remove 'Made with PenningPal' watermark",
       ));
@@ -260,6 +296,38 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     setState(() {
       _theme = _theme.copyWith(showWatermark: !remove);
     });
+  }
+
+  void _onPhotoBackdropChanged(CardThemeConfig next) {
+    final previous = _theme.customBackgroundImagePath;
+    final removed = previous != null && next.customBackgroundImagePath == null;
+    setState(() => _theme = next);
+    if (removed) {
+      unawaited(widget.photoBackdropStore.deleteIfManaged(previous));
+    }
+  }
+
+  Future<void> _pickPhotoBackdrop() async {
+    if (!ref.read(canAccessProFeatureProvider)) {
+      await _promptUpgrade(
+        highlight: 'Custom photo backdrops with blur and contrast scrim',
+      );
+      return;
+    }
+    final previous = _theme.customBackgroundImagePath;
+    final path = await widget.photoBackdropStore.pickFromGallery();
+    if (!mounted || path == null) return;
+    setState(() {
+      _theme = _theme.copyWith(customBackgroundImagePath: path);
+    });
+    try {
+      await precacheImage(FileImage(File(path)), context);
+    } catch (_) {
+      // Preview still renders via Image.file errorBuilder.
+    }
+    if (previous != null && previous != path) {
+      unawaited(widget.photoBackdropStore.deleteIfManaged(previous));
+    }
   }
 
   Future<void> _promptUpgrade({String? highlight}) async {
@@ -281,10 +349,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       customBackground: Color(settings.customBackgroundColor),
       customText: Color(settings.customTextColor),
     );
-    final isPro = ref.read(isProPurchasedProvider);
-    if (resolved.isPremium && !isPro) return;
+    if (resolved.isPremium && !ref.read(canAccessProFeatureProvider)) return;
     setState(() {
-      _theme = resolved.copyWith(showWatermark: _theme.showWatermark);
+      _theme = resolved.withExporterChrome(_theme);
     });
   }
 
@@ -359,7 +426,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       text: text,
       aspectRatio: _aspect,
       theme: _theme,
-      isProPurchased: ref.read(isProPurchasedProvider),
+      isProPurchased: ref.read(canAccessProFeatureProvider),
       author: _authorName,
       authorHandle: _authorHandle,
       currentSlideIndex: _deck.isCarousel ? _slideIndex : null,
@@ -395,7 +462,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       deck,
       _theme,
       aspect ?? _aspect,
-      ref.read(isProPurchasedProvider),
+      ref.read(canAccessProFeatureProvider),
       context: context,
       author: _authorName,
       authorHandle: _authorHandle,
@@ -532,7 +599,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
 
   Future<void> _exportLinkedInPdf(BuildContext buttonContext) async {
     if (_isBusy) return;
-    if (!ref.read(isProPurchasedProvider)) {
+    if (!ref.read(canAccessProFeatureProvider)) {
       await _promptUpgrade(
         highlight: 'Export swipeable LinkedIn PDF carousels',
       );
@@ -621,7 +688,7 @@ class _ExportActionBar extends StatelessWidget {
     required this.busy,
     required this.isCarousel,
     required this.slideCount,
-    required this.isPro,
+    required this.isProPurchased,
     required this.onShare,
     required this.onSave,
     required this.onCopy,
@@ -631,7 +698,7 @@ class _ExportActionBar extends StatelessWidget {
   final _ExportAction? busy;
   final bool isCarousel;
   final int slideCount;
-  final bool isPro;
+  final bool isProPurchased;
   final ValueChanged<BuildContext> onShare;
   final VoidCallback onSave;
   final VoidCallback onCopy;
@@ -676,7 +743,7 @@ class _ExportActionBar extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Icon(
-                          isPro
+                          isProPurchased
                               ? Icons.picture_as_pdf_outlined
                               : Icons.lock_outline,
                           size: 18,
@@ -1012,12 +1079,14 @@ class _CharacterMeter extends StatelessWidget {
 
 class _WatermarkToggle extends StatelessWidget {
   const _WatermarkToggle({
-    required this.isPro,
+    required this.isProPurchased,
+    required this.canAccessPro,
     required this.removeWatermark,
     required this.onChanged,
   });
 
-  final bool isPro;
+  final bool isProPurchased;
+  final bool canAccessPro;
   final bool removeWatermark;
   final ValueChanged<bool> onChanged;
 
@@ -1033,14 +1102,14 @@ class _WatermarkToggle extends StatelessWidget {
         style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
       ),
       secondary: Icon(
-        isPro ? Icons.water_drop_outlined : Icons.lock_outline,
-        key: isPro
+        isProPurchased ? Icons.water_drop_outlined : Icons.lock_outline,
+        key: isProPurchased
             ? const Key('watermark-unlocked')
             : const Key('watermark-lock'),
         size: 20,
         color: colors.onSurface.withValues(alpha: 0.6),
       ),
-      value: isPro && removeWatermark,
+      value: canAccessPro && removeWatermark,
       onChanged: onChanged,
     );
   }
@@ -1049,12 +1118,12 @@ class _WatermarkToggle extends StatelessWidget {
 class _TemplateCarousel extends StatelessWidget {
   const _TemplateCarousel({
     required this.selected,
-    required this.isPro,
+    required this.isProPurchased,
     required this.onSelected,
   });
 
   final CardThemeConfig selected;
-  final bool isPro;
+  final bool isProPurchased;
   final ValueChanged<CardThemeConfig> onSelected;
 
   @override
@@ -1074,7 +1143,7 @@ class _TemplateCarousel extends StatelessWidget {
           return _TemplateChip(
             preset: swatch,
             selected: isSelected,
-            locked: preset.isPremium && !isPro,
+            locked: preset.isPremium && !isProPurchased,
             onTap: () => onSelected(preset),
           );
         },

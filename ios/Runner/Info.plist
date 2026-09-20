@@ -29,7 +29,7 @@
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>PenningPal needs access to your photo library to save social cards.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>PenningPal needs access to your photo library to save social cards.</string>
+		<string>PenningPal uses your photo library to save social cards and to set a custom card background. Photos stay on this device.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

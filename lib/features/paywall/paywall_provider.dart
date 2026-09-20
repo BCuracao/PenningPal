@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_config.dart';
 import 'paywall_service.dart';
+
+export '../../core/config/app_config.dart'
+    show canAccessProFeature, kDemoModeBypassPaywall;
 
 /// Production [PaywallService]. Tests override this with a fake.
 final paywallServiceProvider = Provider<PaywallService>(
@@ -11,10 +15,20 @@ final paywallServiceProvider = Provider<PaywallService>(
 final paywallProvider =
     AsyncNotifierProvider<PaywallNotifier, bool>(PaywallNotifier.new);
 
-/// Fail-closed reactive flag used by the canvas pipeline. Loading / error
-/// states treat the user as free so watermarks cannot be stripped.
+/// Fail-closed reactive flag used by visual lock badges. Loading / error
+/// states treat the user as free so Pro chrome stays locked until a real
+/// purchase (or restore) lands. Demo bypass must not flip this value.
 final isProPurchasedProvider = Provider<bool>((ref) {
   return ref.watch(paywallProvider).value ?? false;
+});
+
+/// Action / render gate. True when Pro is purchased **or**
+/// [kDemoModeBypassPaywall] is on. Lock icons still read
+/// [isProPurchasedProvider].
+final canAccessProFeatureProvider = Provider<bool>((ref) {
+  return canAccessProFeature(
+    isProPurchased: ref.watch(isProPurchasedProvider),
+  );
 });
 
 class PaywallNotifier extends AsyncNotifier<bool> {

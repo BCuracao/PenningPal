@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -70,6 +71,16 @@ class CarouselBatchExporter {
 
     overlay.insert(entry);
     try {
+      if (config.hasCustomBackground) {
+        final file = File(config.customBackgroundImagePath!);
+        if (await file.exists() && context.mounted) {
+          try {
+            await precacheImage(FileImage(file), context);
+          } catch (_) {
+            // Capture still proceeds; Image.file errorBuilder keeps layout.
+          }
+        }
+      }
       await _waitForFrame();
       return await captureSlides(
         deck: deck,

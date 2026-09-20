@@ -31,13 +31,22 @@ void main() {
       );
       expect(first.name, 'Ada');
       expect(storage.listProfiles(), hasLength(1));
-      expect(storage.canAddProfile(isProPurchased: false), isFalse);
 
-      expect(
-        () => storage.createProfile(isProPurchased: false, name: 'Grace'),
-        throwsA(isA<ProfileLimitException>()),
-      );
-      expect(storage.listProfiles(), hasLength(1));
+      if (canAccessProFeature(isProPurchased: false)) {
+        final second = await storage.createProfile(
+          isProPurchased: false,
+          name: 'Grace',
+        );
+        expect(second.name, 'Grace');
+        expect(storage.listProfiles(), hasLength(2));
+      } else {
+        expect(storage.canAddProfile(isProPurchased: false), isFalse);
+        expect(
+          () => storage.createProfile(isProPurchased: false, name: 'Grace'),
+          throwsA(isA<ProfileLimitException>()),
+        );
+        expect(storage.listProfiles(), hasLength(1));
+      }
     });
 
     test('pro users can create multiple brand profiles', () async {
@@ -126,8 +135,13 @@ void main() {
         isProPurchased: false,
         name: 'Second',
       );
-      expect(second, isNull);
-      expect(container.read(cardSettingsProvider).profiles, hasLength(1));
+      if (canAccessProFeature(isProPurchased: false)) {
+        expect(second, isNotNull);
+        expect(container.read(cardSettingsProvider).profiles, hasLength(2));
+      } else {
+        expect(second, isNull);
+        expect(container.read(cardSettingsProvider).profiles, hasLength(1));
+      }
     });
 
     test('pro addProfile and selectProfile switch the active author', () async {
@@ -189,11 +203,15 @@ void main() {
       await tester.tap(find.byKey(const Key('add-brand-profile')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
-      expect(
-        find.text('Unlimited Ghostwriter & Brand profiles'),
-        findsWidgets,
-      );
+      if (kDemoModeBypassPaywall) {
+        expect(find.text('Unlock PenningPal Pro'), findsNothing);
+      } else {
+        expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
+        expect(
+          find.text('Unlimited Ghostwriter & Brand profiles'),
+          findsWidgets,
+        );
+      }
     });
   });
 }

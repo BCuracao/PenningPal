@@ -27,6 +27,7 @@
 - [x] Task 3.6: Implement rich Markdown card rendering, auto-scaling typography, and hardened carousel splitting.
 - [x] Task 3.7: Implement Copy Image to Clipboard via super_clipboard and interactive pinch-to-zoom inspect.
 - [x] Task 3.8: Implement LinkedIn Multi-Page PDF Carousel export, new card theme presets, and multi-profile brand switcher.
+- [x] Task 3.9: Implement custom photo backgrounds with Gaussian blur and contrast scrim sliders.
 - [x] Task 4.1: Integrate RevenueCat lifetime paywall gate.
 - [x] Task 4.2: Configure App branding (SocialSlate), offline legal pages, launcher icons, and release ProGuard rules.
 - [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
@@ -252,3 +253,12 @@
 - Tests: `test/features/pdf_export_test.dart`, `test/features/profile_storage_test.dart`, plus theme / paywall / carousel updates. `flutter test` 266 passed; `flutter analyze lib test` clean.
 - Modified: `pubspec.yaml`, `lib/features/exporter/{templates/card_theme_config,presentation/{card_canvas,card_exporter_screen,brand_color_picker_sheet,brand_profile_sheet,syntax_card_block},render/{linkedin_pdf_exporter,card_export_service},state/card_settings}.dart`, `lib/core/persistence/{profile_storage,settings_storage}.dart`, `lib/features/paywall/paywall_bottom_sheet.dart`, `lib/main.dart`, settings sheet, tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still replace RevenueCat placeholder keys before store shipping.
+
+### 2026-09-20 — Task 3.9: Custom photo backdrops with blur and contrast scrim
+- `CardThemeConfig` now carries an optional on-device `customBackgroundImagePath` plus `blurSigma` (0–30, default 12), `overlayOpacity` (0.2–0.85, default 0.5), and `isDarkOverlay` (default true). Free rasterization via `enforcedFor` strips the photo and keeps the watermark unless `kDemoModeBypassPaywall` / Pro is active.
+- `CardCanvas` paints a full-bleed `ImageFiltered` Gaussian blur + contrast scrim under the author header and markdown so 1080×1080 and 1080×1920 live preview and `pixelRatio: 3` export stay legible.
+- `PhotoBackdropStore` copies `image_picker` selections into application-support `photo_backdrops/` (never uploaded). `CardCustomizerControls` exposes Choose / Remove Photo, blur, dimmer, and dark/light scrim toggles; picks are Pro-gated.
+- `CarouselBatchExporter` precaches the local file once so carousel slides and LinkedIn PDF pages reuse the same decoded image without extra `ui.Image` leaks. Paywall copy lists the new backdrop benefit.
+- Tests: `test/features/custom_background_test.dart`. `flutter analyze lib test` clean; `flutter test` 279 passed.
+- Modified: `lib/features/exporter/{templates/card_theme_config,presentation/{card_canvas,card_customizer_controls,card_exporter_screen},render/{photo_backdrop_store,carousel_batch_exporter}}.dart`, `lib/features/paywall/paywall_bottom_sheet.dart`, `pubspec.yaml`, iOS `Info.plist`, Android `AndroidManifest.xml`, tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still replace RevenueCat placeholder keys before store shipping; set `kDemoModeBypassPaywall` to `false` before production submission.

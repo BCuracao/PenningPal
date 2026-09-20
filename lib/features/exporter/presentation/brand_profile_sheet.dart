@@ -33,7 +33,8 @@ class BrandProfileSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(cardSettingsProvider);
-    final isPro = ref.watch(isProPurchasedProvider);
+    final isProPurchased = ref.watch(isProPurchasedProvider);
+    final canAccessPro = ref.watch(canAccessProFeatureProvider);
     final colors = Theme.of(context).colorScheme;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -56,7 +57,7 @@ class BrandProfileSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              isPro
+              isProPurchased
                   ? 'Switch ghostwriter identities in one tap.'
                   : 'Free accounts keep 1 profile. Pro unlocks unlimited brands.',
               textAlign: TextAlign.center,
@@ -79,12 +80,11 @@ class BrandProfileSheet extends ConsumerWidget {
             const SizedBox(height: 8),
             OutlinedButton.icon(
               key: const Key('add-brand-profile'),
-              onPressed: () => _addProfile(context, ref, isPro),
+              onPressed: () => _addProfile(context, ref, canAccessPro),
               icon: Icon(
-                isPro ||
-                        ref
-                            .read(profileStorageProvider)
-                            .canAddProfile(isProPurchased: isPro)
+                isProPurchased ||
+                        settings.profiles.length <
+                            ProfileStorage.freeProfileLimit
                     ? Icons.add
                     : Icons.lock_outline,
                 size: 18,
