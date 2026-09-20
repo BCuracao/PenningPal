@@ -10,8 +10,6 @@
 
 PenningPal is a Flutter iOS and Android app for people who draft in markdown and publish on social platforms. It turns a local scratchpad into Unicode-formatted posts, rich HTML for newsletters, and 1080px social cards — without accounts, cloud sync, or a backend.
 
-The GitHub repository is still named [SocialSlate](https://github.com/BCuracao/SocialSlate); the product name is **PenningPal**.
-
 ## Why it exists
 
 Most social networks ignore markdown. Bold, italic, headings, and code either vanish or look messy when you paste. PenningPal keeps a **raw markdown buffer** on device, then converts at export time:
@@ -84,8 +82,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module boundaries and data 
 Requires [Flutter](https://docs.flutter.dev/get-started/install) (Dart SDK `^3.13.0`).
 
 ```bash
-git clone https://github.com/BCuracao/SocialSlate.git
-cd SocialSlate
+git clone https://github.com/BCuracao/PenningPal.git
+cd PenningPal
 flutter pub get
 flutter test
 flutter run

@@ -5,7 +5,7 @@
 - **Official name**: **PenningPal** (rebranded from working titles Clean Canvas / SocialSlate). User-facing strings, native display names, watermarks, and legal copy use PenningPal. Package IDs remain `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android).
 - **Current Blocker**: None. Replace placeholder RevenueCat public keys and store product IDs before App Store / Play shipping.
 - **Target Stack**: Flutter (latest stable), State: Riverpod or Signals, Clipboard: `super_clipboard`, Storage: Hive / SharedPrefs
-- **Git Remote**: `origin` → https://github.com/BCuracao/SocialSlate (`main`, public). Working tree tracks `origin/main`.
+- **Git Remote**: `origin` → https://github.com/BCuracao/PenningPal (`main`, public). Working tree tracks `origin/main`. GitHub redirects the former `BCuracao/SocialSlate` URL.
 
 ## Architectural Decision Records (ADRs)
 * **ADR-001 (Engine Separation)**: All Markdown-to-Unicode and Markdown-to-HTML transformers must reside in `lib/core/converter/` as pure Dart libraries without Flutter UI framework imports.
@@ -266,4 +266,9 @@
 ### 2026-09-20 — GitHub README
 - Replaced the Flutter starter README with a product-facing overview for PenningPal: what it does, scratchpad/export/card features, Free vs Pro, privacy, stack, local run instructions, and store-shipping notes for maintainers.
 - Clarifies that the public GitHub remote remains `BCuracao/SocialSlate` while the shipped name is PenningPal.
+- Modified: `README.md`, `PROJECT_JOURNAL.md`.
+
+### 2026-09-20 — GitHub repository renamed to PenningPal
+- Renamed the public GitHub remote from `BCuracao/SocialSlate` to `BCuracao/PenningPal` (old URL redirects).
+- Updated `origin`, clone instructions, and README so they no longer treat SocialSlate as the current repo name.
 - Modified: `README.md`, `PROJECT_JOURNAL.md`.
