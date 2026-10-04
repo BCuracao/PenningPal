@@ -1,4 +1,4 @@
-import 'package:clean_canvas/core/converter/html_engine.dart';
+import 'package:penningpal/core/converter/html_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -1,4 +1,4 @@
-package com.cleancanvas.clean_canvas
+package com.shoebillsoftware.penningpal
 
 import io.flutter.embedding.android.FlutterActivity
 

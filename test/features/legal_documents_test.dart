@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:clean_canvas/features/paywall/paywall_provider.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/legal_document_viewer.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/settings_bottom_sheet.dart';
-import 'package:clean_canvas/main.dart';
+import 'package:penningpal/features/paywall/paywall_provider.dart';
+import 'package:penningpal/features/scratchpad/presentation/legal_document_viewer.dart';
+import 'package:penningpal/features/scratchpad/presentation/settings_bottom_sheet.dart';
+import 'package:penningpal/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

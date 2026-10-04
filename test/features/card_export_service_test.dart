@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:clean_canvas/features/exporter/presentation/card_exporter_screen.dart';
-import 'package:clean_canvas/features/exporter/render/card_export_service.dart';
-import 'package:clean_canvas/features/exporter/render/card_rasterizer.dart';
-import 'package:clean_canvas/features/paywall/paywall_provider.dart';
+import 'package:penningpal/features/exporter/presentation/card_exporter_screen.dart';
+import 'package:penningpal/features/exporter/render/card_export_service.dart';
+import 'package:penningpal/features/exporter/render/card_rasterizer.dart';
+import 'package:penningpal/features/paywall/paywall_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

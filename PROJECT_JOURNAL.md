@@ -2,7 +2,7 @@
 
 ## Active State
 - **Current Phase**: Phase 4 — Lifetime Paywall (complete, including Task 4.4 production gating)
-- **Official name**: **PenningPal** (rebranded from working titles Clean Canvas / SocialSlate). User-facing strings, native display names, watermarks, and legal copy use PenningPal. Package IDs remain `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android).
+- **Official name**: **PenningPal** (rebranded from working titles Clean Canvas / SocialSlate). User-facing strings, native display names, watermarks, and legal copy use PenningPal. Package ID is `com.shoebillsoftware.penningpal` on iOS and Android. The Dart package name is `penningpal`.
 - **Current Blocker**: Google Play RevenueCat public key is still empty. Create `pro_lifetime` in App Store Connect / Play Console and attach it to the `default` offering and `pro_access` entitlement before store shipping. Simulator purchases use `ios/PenningPalConfiguration.storekit`.
 - **Target Stack**: Flutter (latest stable), State: Riverpod or Signals, Clipboard: `super_clipboard`, Storage: Hive / SharedPrefs
 - **Git Remote**: `origin` → https://github.com/BCuracao/PenningPal (`main`, public). Working tree tracks `origin/main`. GitHub redirects the former `BCuracao/SocialSlate` URL.
@@ -293,3 +293,17 @@
 - Tests: `flutter analyze lib test` clean; `flutter test` 289 passed.
 - Modified: `lib/core/config/{app_config,revenue_cat_config}.dart`, `lib/features/paywall/{services/paywall_service,state/paywall_providers,presentation/paywall_bottom_sheet}.dart` (previous flat files re-export these), `test/features/paywall_test.dart`, `test/helpers/fake_paywall_service.dart`, `ios/PenningPalConfiguration.storekit`, `ios/Runner.xcodeproj/project.pbxproj`, `ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`, `docs/ARCHITECTURE.md`, `README.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: add the Google Play RevenueCat public key; create `pro_lifetime` in App Store Connect and Play Console and attach it to the `default` offering and `pro_access`; enable the In-App Purchase capability before device or TestFlight purchases.
+
+### 2026-10-05 — Rename store package ID to Shoebill Software
+- Native application ID is now `com.shoebillsoftware.penningpal` on iOS, Android, macOS, and Linux. iOS and macOS test targets use `com.shoebillsoftware.penningpal.RunnerTests`.
+- Android `namespace`, `applicationId`, `MainActivity` package, and the super_clipboard provider authority all moved together. Kotlin source now lives at `android/app/src/main/kotlin/com/shoebillsoftware/penningpal/MainActivity.kt`.
+- macOS and Windows copyright / company strings now say Shoebill Software.
+- Dart package name stays `clean_canvas`. RevenueCat is tied to the store app record, so the Apple and Google apps (and the RevenueCat dashboard apps) must be created or updated under this ID before purchases will match.
+- Modified: `ios/Runner.xcodeproj/project.pbxproj`, `macos/Runner.xcodeproj/project.pbxproj`, `macos/Runner/Configs/AppInfo.xcconfig`, `android/app/build.gradle.kts`, `android/app/src/main/AndroidManifest.xml`, `android/app/src/main/kotlin/com/shoebillsoftware/penningpal/MainActivity.kt`, `linux/CMakeLists.txt`, `windows/runner/Runner.rc`, `README.md`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: register `com.shoebillsoftware.penningpal` in App Store Connect, Play Console, and RevenueCat before store shipping.
+
+### 2026-10-05 — Rename Dart package to penningpal
+- `pubspec.yaml` package name is now `penningpal`. Test imports use `package:penningpal/...`. App library files already use relative imports, so they did not need path changes.
+- Export filenames (`clean_canvas_YYYYMMDD_HHMMSS.png`) and desktop binary names (`clean_canvas` on Linux, Windows, and macOS) are unchanged.
+- Modified: `pubspec.yaml`, `test/**/*.dart`, `PROJECT_JOURNAL.md`.
+- Follow-up: run `flutter pub get` after pulling so `.dart_tool/package_config.json` picks up the new name.

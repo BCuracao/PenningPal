@@ -2,9 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:clean_canvas/main.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.dart';
-import 'package:clean_canvas/features/paywall/paywall_provider.dart';
+import 'package:penningpal/main.dart';
+import 'package:penningpal/features/scratchpad/presentation/scratchpad_screen.dart';
+import 'package:penningpal/features/paywall/paywall_provider.dart';
 
 import 'helpers/fake_paywall_service.dart';
 

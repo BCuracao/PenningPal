@@ -1,7 +1,7 @@
-import 'package:clean_canvas/features/exporter/models/carousel_deck.dart';
-import 'package:clean_canvas/features/exporter/presentation/card_canvas.dart';
-import 'package:clean_canvas/features/exporter/presentation/markdown_card_content.dart';
-import 'package:clean_canvas/features/exporter/templates/card_theme_config.dart';
+import 'package:penningpal/features/exporter/models/carousel_deck.dart';
+import 'package:penningpal/features/exporter/presentation/card_canvas.dart';
+import 'package:penningpal/features/exporter/presentation/markdown_card_content.dart';
+import 'package:penningpal/features/exporter/templates/card_theme_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

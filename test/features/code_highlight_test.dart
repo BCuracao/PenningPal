@@ -1,7 +1,7 @@
-import 'package:clean_canvas/features/exporter/presentation/card_canvas.dart';
-import 'package:clean_canvas/features/exporter/presentation/syntax_card_block.dart';
-import 'package:clean_canvas/features/exporter/render/code_block_parser.dart';
-import 'package:clean_canvas/features/exporter/templates/card_theme_config.dart';
+import 'package:penningpal/features/exporter/presentation/card_canvas.dart';
+import 'package:penningpal/features/exporter/presentation/syntax_card_block.dart';
+import 'package:penningpal/features/exporter/render/code_block_parser.dart';
+import 'package:penningpal/features/exporter/templates/card_theme_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';

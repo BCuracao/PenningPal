@@ -1,13 +1,13 @@
 import 'dart:io';
 
-import 'package:clean_canvas/core/persistence/draft_storage.dart';
-import 'package:clean_canvas/core/persistence/settings_storage.dart';
-import 'package:clean_canvas/features/paywall/paywall_provider.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/drafts_drawer.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/settings_bottom_sheet.dart';
-import 'package:clean_canvas/features/scratchpad/state/draft_presentation.dart';
-import 'package:clean_canvas/features/scratchpad/state/scratchpad_notifier.dart';
+import 'package:penningpal/core/persistence/draft_storage.dart';
+import 'package:penningpal/core/persistence/settings_storage.dart';
+import 'package:penningpal/features/paywall/paywall_provider.dart';
+import 'package:penningpal/features/scratchpad/presentation/drafts_drawer.dart';
+import 'package:penningpal/features/scratchpad/presentation/scratchpad_screen.dart';
+import 'package:penningpal/features/scratchpad/presentation/settings_bottom_sheet.dart';
+import 'package:penningpal/features/scratchpad/state/draft_presentation.dart';
+import 'package:penningpal/features/scratchpad/state/scratchpad_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

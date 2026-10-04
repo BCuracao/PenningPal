@@ -89,7 +89,7 @@ flutter test
 flutter run
 ```
 
-Package IDs are `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android). Display names, watermarks, and legal copy use **PenningPal**.
+Package ID is `com.shoebillsoftware.penningpal` on iOS and Android. Display names, watermarks, and legal copy use **PenningPal**.
 
 ### Tests and analysis
 

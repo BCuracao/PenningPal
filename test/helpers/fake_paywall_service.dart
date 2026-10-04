@@ -1,5 +1,5 @@
-import 'package:clean_canvas/core/config/app_config.dart';
-import 'package:clean_canvas/features/paywall/paywall_service.dart';
+import 'package:penningpal/core/config/app_config.dart';
+import 'package:penningpal/features/paywall/paywall_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 /// In-memory [PaywallService] for unit and widget tests.

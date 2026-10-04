@@ -1,7 +1,7 @@
-import 'package:clean_canvas/core/persistence/draft_storage.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.dart';
-import 'package:clean_canvas/features/scratchpad/state/scratchpad_notifier.dart';
-import 'package:clean_canvas/features/scratchpad/state/scratchpad_state.dart';
+import 'package:penningpal/core/persistence/draft_storage.dart';
+import 'package:penningpal/features/scratchpad/presentation/scratchpad_screen.dart';
+import 'package:penningpal/features/scratchpad/state/scratchpad_notifier.dart';
+import 'package:penningpal/features/scratchpad/state/scratchpad_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

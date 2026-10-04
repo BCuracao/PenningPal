@@ -1,7 +1,7 @@
-import 'package:clean_canvas/features/scratchpad/presentation/formatting_toolbar.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.dart';
-import 'package:clean_canvas/features/scratchpad/render/markdown_quill_bridge.dart';
-import 'package:clean_canvas/features/scratchpad/state/markdown_formatter.dart';
+import 'package:penningpal/features/scratchpad/presentation/formatting_toolbar.dart';
+import 'package:penningpal/features/scratchpad/presentation/scratchpad_screen.dart';
+import 'package:penningpal/features/scratchpad/render/markdown_quill_bridge.dart';
+import 'package:penningpal/features/scratchpad/state/markdown_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

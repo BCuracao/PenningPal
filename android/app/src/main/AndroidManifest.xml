@@ -42,7 +42,7 @@
         <!-- Required by super_clipboard to expose PNG bytes on Android. -->
         <provider
             android:name="com.superlist.super_native_extensions.DataProvider"
-            android:authorities="com.cleancanvas.clean_canvas.SuperClipboardDataProvider"
+            android:authorities="com.shoebillsoftware.penningpal.SuperClipboardDataProvider"
             android:exported="true"
             android:grantUriPermissions="true" />
     </application>

@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:clean_canvas/core/persistence/profile_storage.dart';
-import 'package:clean_canvas/core/persistence/settings_storage.dart';
-import 'package:clean_canvas/features/exporter/presentation/card_exporter_screen.dart';
-import 'package:clean_canvas/features/exporter/state/card_settings.dart';
-import 'package:clean_canvas/features/paywall/paywall_provider.dart';
+import 'package:penningpal/core/persistence/profile_storage.dart';
+import 'package:penningpal/core/persistence/settings_storage.dart';
+import 'package:penningpal/features/exporter/presentation/card_exporter_screen.dart';
+import 'package:penningpal/features/exporter/state/card_settings.dart';
+import 'package:penningpal/features/paywall/paywall_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

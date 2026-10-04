@@ -8,7 +8,7 @@
 PRODUCT_NAME = PenningPal
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.cleancanvas.cleanCanvas
+PRODUCT_BUNDLE_IDENTIFIER = com.shoebillsoftware.penningpal
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.cleancanvas. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Shoebill Software. All rights reserved.

@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:clean_canvas/features/exporter/render/card_export_service.dart';
-import 'package:clean_canvas/features/exporter/render/linkedin_pdf_exporter.dart';
+import 'package:penningpal/features/exporter/render/card_export_service.dart';
+import 'package:penningpal/features/exporter/render/linkedin_pdf_exporter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/pdf.dart';
 import 'package:share_plus/share_plus.dart';
