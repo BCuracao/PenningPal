@@ -1,120 +1,148 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../state/markdown_formatter.dart';
+import 'quill_formatting.dart';
 
-/// Keyboard accessory that inserts markdown tokens so users never type syntax.
+/// Keyboard accessory that applies rich-text formatting without inserting
+/// markdown tokens into the visible document.
 class FormattingToolbar extends StatelessWidget {
   const FormattingToolbar({
     super.key,
     required this.controller,
-    this.onTextChanged,
-    this.formatter = const MarkdownFormatter(),
   });
 
-  final TextEditingController controller;
-  final ValueChanged<String>? onTextChanged;
-  final MarkdownFormatter formatter;
+  final QuillController controller;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final labelStyle = GoogleFonts.inter(
-      fontSize: 15,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.2,
-      color: colors.onSurface,
-    );
 
-    return ExcludeFocus(
-      child: Material(
-        key: const Key('formatting-toolbar'),
-        color: colors.surfaceContainerLowest,
-        elevation: 0,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.surfaceContainerLowest,
-            border: Border(
-              top: BorderSide(
-                color: colors.outlineVariant.withValues(alpha: 0.45),
+    return TextFieldTapRegion(
+      child: ExcludeFocus(
+        child: Material(
+          key: const Key('formatting-toolbar'),
+          color: colors.surfaceContainerLowest,
+          elevation: 0,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerLowest,
+              border: Border(
+                top: BorderSide(
+                  color: colors.outlineVariant.withValues(alpha: 0.45),
+                ),
               ),
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            bottom: false,
-            child: SizedBox(
-              height: 48,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: SizedBox(
+                height: 48,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: ListenableBuilder(
+                    listenable: controller,
+                    builder: (context, _) {
+                      final style = controller.getSelectionStyle();
+                      final header =
+                          style.attributes[Attribute.header.key]?.value;
+                      return Row(
                         children: [
-                          _FormatButton(
-                            buttonKey: const Key('format-bold'),
-                            semanticLabel: 'Bold',
-                            onTap: () => _run(formatter.toggleBold),
-                            child: Text(
-                              'B',
-                              style: labelStyle.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                          Expanded(
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: [
+                                _FormatButton(
+                                  buttonKey: const Key('format-bold'),
+                                  activeKey: const Key('format-bold-active'),
+                                  semanticLabel: 'Bold',
+                                  active: _isOn(style, Attribute.bold),
+                                  emphasize: FontWeight.w800,
+                                  onTap: () => _run(
+                                    () => toggleQuillAttribute(
+                                      controller,
+                                      Attribute.bold,
+                                    ),
+                                  ),
+                                  child: const Text('B'),
+                                ),
+                                _FormatButton(
+                                  buttonKey: const Key('format-italic'),
+                                  activeKey: const Key('format-italic-active'),
+                                  semanticLabel: 'Italic',
+                                  active: _isOn(style, Attribute.italic),
+                                  italic: true,
+                                  onTap: () => _run(
+                                    () => toggleQuillAttribute(
+                                      controller,
+                                      Attribute.italic,
+                                    ),
+                                  ),
+                                  child: const Text('I'),
+                                ),
+                                _FormatButton(
+                                  buttonKey: const Key('format-heading'),
+                                  activeKey: const Key('format-heading-active'),
+                                  semanticLabel: 'Heading',
+                                  active: header is num && header > 0,
+                                  onTap: () => _run(
+                                    () => cycleQuillHeading(controller),
+                                  ),
+                                  child: const Text('H'),
+                                ),
+                                _FormatButton(
+                                  buttonKey: const Key('format-bullet'),
+                                  activeKey: const Key('format-bullet-active'),
+                                  semanticLabel: 'Bullet list',
+                                  active: _isOn(style, Attribute.ul),
+                                  onTap: () => _run(
+                                    () => toggleQuillAttribute(
+                                      controller,
+                                      Attribute.ul,
+                                    ),
+                                  ),
+                                  child: const Text('•'),
+                                ),
+                                _FormatButton(
+                                  buttonKey: const Key('format-quote'),
+                                  activeKey: const Key('format-quote-active'),
+                                  semanticLabel: 'Quote',
+                                  active: _isOn(style, Attribute.blockQuote),
+                                  onTap: () => _run(
+                                    () => toggleQuillAttribute(
+                                      controller,
+                                      Attribute.blockQuote,
+                                    ),
+                                  ),
+                                  child: const Text('”'),
+                                ),
+                                _FormatButton(
+                                  buttonKey: const Key('format-code'),
+                                  activeKey: const Key('format-code-active'),
+                                  semanticLabel: 'Code',
+                                  active: _isOn(style, Attribute.inlineCode) ||
+                                      _isOn(style, Attribute.codeBlock),
+                                  monospace: true,
+                                  onTap: () => _run(
+                                    () => toggleQuillCode(controller),
+                                  ),
+                                  child: const Text('</>'),
+                                ),
+                              ],
                             ),
                           ),
-                          _FormatButton(
-                            buttonKey: const Key('format-italic'),
-                            semanticLabel: 'Italic',
-                            onTap: () => _run(formatter.toggleItalic),
-                            child: Text(
-                              'I',
-                              style: labelStyle.copyWith(
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          _FormatButton(
-                            buttonKey: const Key('format-heading'),
-                            semanticLabel: 'Heading',
-                            onTap: () => _run(formatter.cycleHeading),
-                            child: Text('H', style: labelStyle),
-                          ),
-                          _FormatButton(
-                            buttonKey: const Key('format-bullet'),
-                            semanticLabel: 'Bullet list',
-                            onTap: () => _run(formatter.toggleBullet),
-                            child: Text('•=', style: labelStyle),
-                          ),
-                          _FormatButton(
-                            buttonKey: const Key('format-quote'),
-                            semanticLabel: 'Quote',
-                            onTap: () => _run(formatter.toggleQuote),
-                            child: Text('”', style: labelStyle),
-                          ),
-                          _FormatButton(
-                            buttonKey: const Key('format-code'),
-                            semanticLabel: 'Code',
-                            onTap: () => _run(formatter.toggleCode),
-                            child: Text(
-                              '</>',
-                              style: labelStyle.copyWith(
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                              ),
+                          const SizedBox(width: 4),
+                          _SlideBreakButton(
+                            onTap: () => _run(
+                              () => insertQuillSlideBreak(controller),
+                              heavy: true,
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    _SlideBreakButton(
-                      onTap: () => _run(formatter.insertSlideBreak),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -124,46 +152,63 @@ class FormattingToolbar extends StatelessWidget {
     );
   }
 
-  void _run(
-    MarkdownEditResult Function(String text, int start, int end) action,
-  ) {
-    HapticFeedback.selectionClick();
-    final text = controller.text;
-    final sel = controller.selection;
-    final start = sel.isValid ? sel.start : text.length;
-    final end = sel.isValid ? sel.end : text.length;
-    final result = action(text, start, end);
-    controller.value = TextEditingValue(
-      text: result.text,
-      selection: TextSelection(
-        baseOffset: result.selectionStart,
-        extentOffset: result.selectionEnd,
-      ),
-    );
-    onTextChanged?.call(result.text);
+  bool _isOn(Style style, Attribute attribute) {
+    final current = style.attributes[attribute.key];
+    return current != null && current.value == attribute.value;
+  }
+
+  void _run(VoidCallback action, {bool heavy = false}) {
+    if (heavy) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.selectionClick();
+    }
+    action();
   }
 }
 
 class _FormatButton extends StatelessWidget {
   const _FormatButton({
     required this.buttonKey,
+    required this.activeKey,
     required this.semanticLabel,
     required this.onTap,
     required this.child,
+    required this.active,
+    this.emphasize,
+    this.italic = false,
+    this.monospace = false,
   });
 
   final Key buttonKey;
+  final Key activeKey;
   final String semanticLabel;
   final VoidCallback onTap;
   final Widget child;
+  final bool active;
+  final FontWeight? emphasize;
+  final bool italic;
+  final bool monospace;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final baseStyle = GoogleFonts.inter(
+      fontSize: monospace ? 13 : 15,
+      fontWeight: emphasize ?? FontWeight.w600,
+      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+      letterSpacing: 0.2,
+      color: active ? colors.primary : colors.onSurface,
+    );
+    final labelStyle = monospace
+        ? baseStyle.copyWith(fontFamily: 'monospace')
+        : baseStyle;
+
     return Semantics(
       key: buttonKey,
       button: true,
       label: semanticLabel,
+      selected: active,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
         child: Material(
@@ -172,13 +217,24 @@ class _FormatButton extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(10),
             child: Ink(
+              key: active ? activeKey : null,
               width: 40,
               height: 36,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: colors.surfaceContainerHighest.withValues(alpha: 0.55),
+                color: active
+                    ? colors.primary.withValues(alpha: 0.16)
+                    : colors.surfaceContainerHighest.withValues(alpha: 0.55),
               ),
-              child: Center(child: child),
+              child: Center(
+                child: IconTheme.merge(
+                  data: IconThemeData(color: labelStyle.color),
+                  child: DefaultTextStyle.merge(
+                    style: labelStyle,
+                    child: child,
+                  ),
+                ),
+              ),
             ),
           ),
         ),

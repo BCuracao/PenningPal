@@ -20,6 +20,7 @@
 - [x] Task 2.2: Add one-tap platform export actions (LinkedIn, X, Substack).
 - [x] Task 2.3: Implement visual keyboard formatting toolbar and real-time styled text controller.
 - [x] Task 2.4: Implement Multi-Draft Drawer, auto-titling, and App Settings.
+- [x] Task 2.5: Upgrade Scratchpad to true WYSIWYG rich-text editor with zero visible Markdown tokens.
 - [x] Task 3.1: Implement `CardExportCanvas` with 1:1 and 9:16 aspect ratio templates.
 - [x] Task 3.2: Implement image save to gallery (`image_gallery_saver` or native share sheet).
 - [x] Task 3.4: Implement Multi-Slide Carousel splitting, pagination badges, and batch export.
@@ -272,3 +273,12 @@
 - Renamed the public GitHub remote from `BCuracao/SocialSlate` to `BCuracao/PenningPal` (old URL redirects).
 - Updated `origin`, clone instructions, and README so they no longer treat SocialSlate as the current repo name.
 - Modified: `README.md`, `PROJECT_JOURNAL.md`.
+
+### 2026-10-04 — Task 2.5: True WYSIWYG scratchpad
+- Replaced the scratchpad `TextField` with `flutter_quill` 11.6.0 (`QuillEditor`). `flutter_quill_to_markdown` is not on pub.dev, and `markdown_quill` cannot represent a carousel divider, so the Markdown bridge is a dedicated converter in `lib/features/scratchpad/render/markdown_quill_bridge.dart`.
+- `markdownToDelta` loads Hive Markdown into a Quill document: headings, bold, italic, quotes, bullets, inline/fenced code, and thematic breaks (`---`, `***`, `___`) as a `slideBreak` embed. `deltaToMarkdown` writes clean Markdown back, with embeds as `---`, so `CardCanvas`, `CarouselDeck`, and the Unicode/HTML exporters keep the same buffer.
+- The editor paints formatted text only: H1 26sp bold, H2 21sp semi-bold, body 17sp at 1.5 line height, an indented italic quote with a 3px accent rule, and a `── Slide Break N ──` banner. Document changes debounce through the existing 400ms Hive save. Draft switches replace the document; keystrokes do not, so the caret is not rebuilt on each save.
+- `FormattingToolbar` calls Quill commands for **B**, **I**, **H** (H1 → H2 → body), **•**, **”**, **</>**, and **+ Slide** (haptic). Bold, italic, and heading buttons highlight while the caret is inside that style.
+- Tests: `test/features/wysiwyg_editor_test.dart` plus updated toolbar, scratchpad, and export widget tests. `flutter analyze lib test` clean; `flutter test` 284 passed.
+- Modified: `pubspec.yaml`, `pubspec.lock`, `lib/features/scratchpad/render/markdown_quill_bridge.dart`, `lib/features/scratchpad/presentation/{scratchpad_screen,formatting_toolbar,quill_formatting,scratchpad_editor_styles,slide_break_embed}.dart`, removed `styled_markdown_controller.dart`, `test/features/{wysiwyg_editor_test,formatting_toolbar_test,scratchpad_state_test,export_actions_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still replace RevenueCat placeholder keys before store shipping; set `kDemoModeBypassPaywall` to `false` before production submission.

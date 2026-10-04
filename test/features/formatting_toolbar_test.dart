@@ -1,8 +1,9 @@
 import 'package:clean_canvas/features/scratchpad/presentation/formatting_toolbar.dart';
 import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.dart';
-import 'package:clean_canvas/features/scratchpad/presentation/styled_markdown_controller.dart';
+import 'package:clean_canvas/features/scratchpad/render/markdown_quill_bridge.dart';
 import 'package:clean_canvas/features/scratchpad/state/markdown_formatter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -92,64 +93,60 @@ void main() {
   });
 
   group('FormattingToolbar', () {
-    Future<StyledMarkdownEditingController> pumpToolbar(
+    Future<QuillController> pumpToolbar(
       WidgetTester tester, {
-      required String text,
+      required String markdown,
       required TextSelection selection,
     }) async {
-      final controller = StyledMarkdownEditingController(text: text)
-        ..selection = selection;
+      final controller = QuillController(
+        document: Document.fromDelta(markdownToDelta(markdown)),
+        selection: selection,
+      );
+      addTearDown(controller.dispose);
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: Column(
-              children: [
-                TextField(controller: controller),
-                FormattingToolbar(controller: controller),
-              ],
-            ),
+            body: FormattingToolbar(controller: controller),
           ),
         ),
       );
       return controller;
     }
 
-    testWidgets('tapping Bold with selected text wraps the exact selection in **', (
+    testWidgets('tapping Bold formats the selection without inserting asterisks', (
       tester,
     ) async {
       final controller = await pumpToolbar(
         tester,
-        text: 'hello world',
+        markdown: 'hello world',
         selection: const TextSelection(baseOffset: 0, extentOffset: 5),
       );
 
       await tester.tap(find.byKey(const Key('format-bold')));
       await tester.pump();
 
-      expect(controller.text, '**hello** world');
-      expect(
-        controller.selection,
-        const TextSelection(baseOffset: 2, extentOffset: 7),
-      );
+      expect(controller.document.toPlainText(), isNot(contains('*')));
+      expect(controller.document.toPlainText(), contains('hello world'));
+      expect(deltaToMarkdown(controller.document.toDelta()), '**hello** world');
+      expect(find.byKey(const Key('format-bold-active')), findsOneWidget);
     });
 
-    testWidgets('tapping + Slide inserts \\n\\n---\\n\\n at the cursor', (
+    testWidgets('tapping + Slide inserts a divider that serializes as ---', (
       tester,
     ) async {
       final controller = await pumpToolbar(
         tester,
-        text: 'hello',
-        selection: const TextSelection.collapsed(offset: 5),
+        markdown: 'Hello\nWorld',
+        selection: const TextSelection.collapsed(offset: 6),
       );
 
       await tester.tap(find.byKey(const Key('format-slide')));
       await tester.pump();
 
-      expect(controller.text, 'hello\n\n---\n\n');
-      expect(
-        controller.selection,
-        TextSelection.collapsed(offset: 'hello\n\n---\n\n'.length),
-      );
+      final markdown = deltaToMarkdown(controller.document.toDelta());
+      expect(markdown, contains('---'));
+      expect(controller.document.toPlainText(), isNot(contains('---')));
+      expect(markdown.split('---').length, 2);
     });
 
     testWidgets('ScratchpadScreen hosts the formatting accessory', (tester) async {
@@ -164,122 +161,4 @@ void main() {
       expect(find.byKey(const Key('format-slide')), findsOneWidget);
     });
   });
-
-  group('StyledMarkdownEditingController', () {
-    testWidgets('buildTextSpan bolds **bold** segments and dims markers', (
-      tester,
-    ) async {
-      final controller = StyledMarkdownEditingController(text: '**bold**');
-      late TextSpan span;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) {
-              span = controller.buildTextSpan(
-                context: context,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF111111),
-                ),
-                withComposing: false,
-              );
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-      );
-
-      expect(_plainText(span), '**bold**');
-      final runs = _flatten(span);
-      final content = runs.where((run) => run.text == 'bold');
-      expect(content, isNotEmpty);
-      expect(content.first.style?.fontWeight, FontWeight.bold);
-
-      final markers = runs.where((run) => run.text == '**');
-      expect(markers.length, 2);
-      for (final marker in markers) {
-        expect(marker.style?.fontWeight, isNot(FontWeight.bold));
-        expect(marker.style?.color?.a, closeTo(0.35, 0.02));
-      }
-    });
-
-    testWidgets('headings, quotes, code, and slide breaks receive distinct styles', (
-      tester,
-    ) async {
-      const source = '# Title\n## Sub\n> quoted\n`code`\n---\n```\nfn()\n```';
-      final controller = StyledMarkdownEditingController(text: source);
-      late TextSpan span;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) {
-              span = controller.buildTextSpan(
-                context: context,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF111111),
-                ),
-                withComposing: false,
-              );
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-      );
-
-      expect(_plainText(span), source);
-      final runs = _flatten(span);
-
-      final title = runs.firstWhere((run) => run.text == 'Title');
-      expect(title.style?.fontSize, MarkdownTextStyler.heading1Size);
-      expect(title.style?.fontWeight, FontWeight.w700);
-
-      final sub = runs.firstWhere((run) => run.text == 'Sub');
-      expect(sub.style?.fontSize, MarkdownTextStyler.heading2Size);
-      expect(sub.style?.fontWeight, FontWeight.w600);
-
-      final quoted = runs.firstWhere((run) => run.text == 'quoted');
-      expect(quoted.style?.fontStyle, FontStyle.italic);
-
-      final code = runs.firstWhere((run) => run.text == 'code');
-      expect(code.style?.fontFamily, 'monospace');
-
-      final divider = runs.firstWhere((run) => run.text.contains('---'));
-      expect(divider.style?.fontWeight, FontWeight.w600);
-    });
-  });
-}
-
-class _PaintedRun {
-  const _PaintedRun(this.text, this.style);
-
-  final String text;
-  final TextStyle? style;
-}
-
-List<_PaintedRun> _flatten(TextSpan span, [TextStyle? inherited]) {
-  final merged = inherited?.merge(span.style) ?? span.style;
-  final out = <_PaintedRun>[];
-  if (span.text != null && span.text!.isNotEmpty) {
-    out.add(_PaintedRun(span.text!, merged));
-  }
-  for (final child in span.children ?? const <InlineSpan>[]) {
-    if (child is TextSpan) {
-      out.addAll(_flatten(child, merged));
-    }
-  }
-  return out;
-}
-
-String _plainText(TextSpan span) {
-  final buffer = StringBuffer();
-  void walk(InlineSpan node) {
-    if (node is TextSpan) {
-      if (node.text != null) buffer.write(node.text);
-      node.children?.forEach(walk);
-    }
-  }
-
-  walk(span);
-  return buffer.toString();
 }

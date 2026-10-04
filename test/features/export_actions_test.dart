@@ -9,6 +9,7 @@ import 'package:clean_canvas/features/scratchpad/presentation/export_actions.dar
 import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.dart';
 import 'package:clean_canvas/features/scratchpad/state/scratchpad_notifier.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -120,11 +121,9 @@ void main() {
       await tester.pump();
     }
 
-    String fieldText(WidgetTester tester) {
-      final field = tester.widget<TextField>(
-        find.byKey(const Key('scratchpad-field')),
-      );
-      return field.controller!.text;
+    String storedDraft(WidgetTester tester) {
+      final context = tester.element(find.byType(ScratchpadScreen));
+      return ProviderScope.containerOf(context).read(scratchpadProvider).content;
     }
 
     testWidgets('empty draft ignores copy taps without crashing', (
@@ -157,7 +156,7 @@ void main() {
         [const UnicodeEngine().convertForSocial(_draft)],
       );
       expect(clipboard.richTexts, isEmpty);
-      expect(fieldText(tester), _draft);
+      expect(storedDraft(tester), _draft);
       expect(find.text(ExportMessages.linkedIn), findsOneWidget);
     });
 
@@ -177,7 +176,7 @@ void main() {
         clipboard.plainTexts,
         [const UnicodeEngine().convertForSocial(_draft)],
       );
-      expect(fieldText(tester), _draft);
+      expect(storedDraft(tester), _draft);
       expect(find.text(ExportMessages.x), findsOneWidget);
     });
 
@@ -197,7 +196,7 @@ void main() {
         clipboard.plainTexts,
         [const UnicodeEngine().convertForSocial(_draft)],
       );
-      expect(fieldText(tester), _draft);
+      expect(storedDraft(tester), _draft);
       expect(find.text(ExportMessages.threads), findsOneWidget);
     });
 
@@ -218,7 +217,7 @@ void main() {
         clipboard.richTexts.single.plainFallback,
         html.markdownToPlain(_draft),
       );
-      expect(fieldText(tester), _draft);
+      expect(storedDraft(tester), _draft);
       expect(find.text(ExportMessages.substack), findsOneWidget);
     });
 
@@ -248,9 +247,14 @@ void main() {
       await pumpScratchpad(tester);
       expect(find.byKey(const Key('x-limit-indicator')), findsNothing);
 
-      await tester.enterText(
+      final editor = tester.widget<QuillEditor>(
         find.byKey(const Key('scratchpad-field')),
+      );
+      editor.controller.replaceText(
+        0,
+        0,
         'a' * (PlatformExporter.xCharLimit + 1),
+        null,
       );
       await tester.pump();
 

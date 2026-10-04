@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/persistence/draft_storage.dart';
+import '../render/markdown_quill_bridge.dart';
 import '../state/scratchpad_notifier.dart';
 import '../state/scratchpad_state.dart';
 import 'drafts_drawer.dart';
 import 'export_toolbar.dart';
 import 'formatting_toolbar.dart';
+import 'scratchpad_editor_styles.dart';
 import 'settings_bottom_sheet.dart';
-import 'styled_markdown_controller.dart';
+import 'slide_break_embed.dart';
 
 /// Distraction-free markdown scratchpad with live stats and auto-save.
 class ScratchpadScreen extends ConsumerStatefulWidget {
@@ -21,23 +26,65 @@ class ScratchpadScreen extends ConsumerStatefulWidget {
 
 class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  late final StyledMarkdownEditingController _controller;
+  late final QuillController _controller;
   late final FocusNode _focusNode;
-  var _syncingController = false;
+  late final ScrollController _scrollController;
+  StreamSubscription<DocChange>? _docChanges;
+  var _applyingExternal = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = StyledMarkdownEditingController(
-      text: ref.read(scratchpadProvider).content,
+    final document = Document.fromDelta(
+      markdownToDelta(ref.read(scratchpadProvider).content),
+    );
+    _controller = QuillController(
+      document: document,
+      selection: const TextSelection.collapsed(offset: 0),
     );
     _focusNode = FocusNode();
+    _scrollController = ScrollController();
+    _listenToDocument(document);
+  }
+
+  void _listenToDocument(Document document) {
+    _docChanges?.cancel();
+    _docChanges = document.changes.listen((_) {
+      _persistDocument(document);
+    });
+  }
+
+  void _persistDocument(Document document) {
+    if (_applyingExternal || !mounted) return;
+    final markdown = deltaToMarkdown(document.toDelta());
+    if (markdown == ref.read(scratchpadProvider).content) return;
+    ref.read(scratchpadProvider.notifier).updateContent(markdown);
+  }
+
+  void _loadDraft(String markdown) {
+    _applyingExternal = true;
+    final next = Document.fromDelta(markdownToDelta(markdown));
+    final previous = _controller.document;
+    _docChanges?.cancel();
+    _controller.document = next;
+    if (!identical(previous, next)) {
+      previous.close();
+    }
+    _listenToDocument(next);
+    final maxOffset = next.length - 1;
+    _controller.updateSelection(
+      TextSelection.collapsed(offset: maxOffset < 0 ? 0 : maxOffset),
+      ChangeSource.local,
+    );
+    _applyingExternal = false;
   }
 
   @override
   void dispose() {
+    _docChanges?.cancel();
     _controller.dispose();
     _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -50,13 +97,7 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
       scratchpadProvider.select((value) => value.activeDraftId),
       (previous, next) {
         if (previous == null || previous == next) return;
-        final content = ref.read(scratchpadProvider).content;
-        _syncingController = true;
-        _controller.value = TextEditingValue(
-          text: content,
-          selection: TextSelection.collapsed(offset: content.length),
-        );
-        _syncingController = false;
+        _loadDraft(ref.read(scratchpadProvider).content);
         _focusNode.requestFocus();
       },
     );
@@ -112,44 +153,23 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-              child: TextField(
+              child: QuillEditor(
                 key: const Key('scratchpad-field'),
                 controller: _controller,
                 focusNode: _focusNode,
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                keyboardType: TextInputType.multiline,
-                textCapitalization: TextCapitalization.sentences,
-                cursorColor: colors.primary,
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  height: 1.7,
-                  fontWeight: FontWeight.w400,
-                  color: colors.onSurface,
+                scrollController: _scrollController,
+                config: QuillEditorConfig(
+                  expands: true,
+                  padding: EdgeInsets.zero,
+                  placeholder: 'Start writing…',
+                  textCapitalization: TextCapitalization.sentences,
+                  customStyles: scratchpadEditorStyles(context),
+                  embedBuilders: const [SlideBreakEmbedBuilder()],
                 ),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  hintText: 'Start writing…',
-                  hintStyle: GoogleFonts.inter(
-                    fontSize: 18,
-                    height: 1.7,
-                    color: colors.onSurface.withValues(alpha: 0.35),
-                  ),
-                ),
-                onChanged: (value) {
-                  if (_syncingController) return;
-                  ref.read(scratchpadProvider.notifier).updateContent(value);
-                },
               ),
             ),
           ),
-          FormattingToolbar(
-            controller: _controller,
-            onTextChanged: (value) {
-              ref.read(scratchpadProvider.notifier).updateContent(value);
-            },
-          ),
+          FormattingToolbar(controller: _controller),
           const ExportToolbar(),
           _ScratchpadStatusBar(state: state),
         ],

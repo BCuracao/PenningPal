@@ -3,6 +3,7 @@ import 'package:clean_canvas/features/scratchpad/presentation/scratchpad_screen.
 import 'package:clean_canvas/features/scratchpad/state/scratchpad_notifier.dart';
 import 'package:clean_canvas/features/scratchpad/state/scratchpad_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -143,7 +144,10 @@ void main() {
       expect(find.text('0 min read'), findsOneWidget);
       expect(find.text('Saved'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextField), 'Hello, world!');
+      final editor = tester.widget<QuillEditor>(
+        find.byKey(const Key('scratchpad-field')),
+      );
+      editor.controller.replaceText(0, 0, 'Hello, world!', null);
       await tester.pump();
 
       expect(find.text('2 words'), findsOneWidget);
