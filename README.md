@@ -102,7 +102,7 @@ Conversion logic lives under `lib/core/converter/` and is covered by unit tests 
 
 ### Store shipping (maintainers)
 
-Before App Store / Play submission, replace placeholder RevenueCat public keys and product IDs in `lib/core/config/revenue_cat_config.dart`, create the `pro_lifetime` product in both stores, attach it to the `pro_access` entitlement, and turn off demo paywall bypass in `lib/core/config/app_config.dart`.
+Before App Store / Play submission, add the Google Play RevenueCat public key in `lib/core/config/app_config.dart` (it is still empty), create the `pro_lifetime` non-consumable in both stores, and attach it to the `pro_access` entitlement on the `default` offering. Demo paywall bypass is off. iOS Simulator purchases use `ios/PenningPalConfiguration.storekit` via the Runner scheme.
 
 ## License
 

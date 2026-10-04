@@ -1,20 +1,16 @@
-/// Public RevenueCat identifiers and store product metadata.
-///
-/// Replace the placeholder API keys with the iOS / Android public SDK keys
-/// from the RevenueCat dashboard before shipping. Entitlement and product
-/// IDs must match the dashboard configuration exactly.
+import 'app_config.dart';
+
+/// Store product metadata. SDK keys and the entitlement id live on [AppConfig]
+/// so the dashboard identifiers have a single source of truth.
 abstract final class RevenueCatConfig {
-  /// iOS / Apple public SDK key (`appl_…`).
-  static const String appleApiKey = 'appl_YOUR_REVENUECAT_APPLE_API_KEY';
-
-  /// Android / Google Play public SDK key (`goog_…`).
-  static const String googleApiKey = 'goog_YOUR_REVENUECAT_GOOGLE_API_KEY';
-
-  /// Entitlement that unlocks Pro themes and watermark removal.
-  static const String entitlementId = 'pro_access';
+  static const String appleApiKey = AppConfig.revenueCatAppleApiKey;
+  static const String googleApiKey = AppConfig.revenueCatGoogleApiKey;
+  static const String entitlementId = AppConfig.proEntitlementId;
+  static const String defaultOfferingId = AppConfig.defaultOfferingId;
 
   /// One-time non-consumable lifetime unlock ($4.99).
   static const String productId = 'pro_lifetime';
 
+  /// Shown on the paywall CTA when offerings cannot be loaded.
   static const String lifetimePriceLabel = r'$4.99';
 }

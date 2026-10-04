@@ -91,9 +91,12 @@ lib/
 * **Code Cards**: Fenced markdown (` ```[lang] `) is parsed on-device into prose + code segments. `SyntaxCardBlock` paints JetBrains Mono with Atom One Dark (dark / Terminal palettes) or GitHub Light (light palettes); unknown or missing language tags fall back to plain monospace. Highlighting uses bundled `flutter_highlight` / `highlight` — no network.
 
 ### 4.4. Entitlement Gating (`lib/features/paywall/`)
-* State tracked via a single reactive boolean: `isProPurchased`.
-* Checks RevenueCat cache on launch (`CustomerInfo.entitlements['pro_access']?.isActive`).
-* Hard enforcement: The export render pipeline intercepts attempts to rasterize custom themes or strip watermarks if `isProPurchased == false` (unless `kDemoModeBypassPaywall` is on). LinkedIn PDF export, extra brand profiles, Aurora / Editorial / Neo-Brutal / Custom Hex, custom photo backdrops, and watermark removal all open `PaywallBottomSheet`.
+* `AppConfig` holds the Apple RevenueCat public key, the Google key (empty until Play Console is linked), entitlement `pro_access`, offering id `default`, and `kDemoModeBypassPaywall` (`false` for production).
+* `PaywallService` configures `purchases_flutter` with StoreKit 2, loads `Offerings.current` (falling back to the `default` offering), purchases that lifetime package, and restores. A cancelled store sheet returns without an error alert.
+* `isProPurchasedProvider` is true when `pro_access` is active or demo bypass is on. `PaywallNotifier` keeps it current with `Purchases.addCustomerInfoUpdateListener`. `currentOfferingProvider` loads the localized store price.
+* The paywall CTA uses `package.storeProduct.priceString` (`Unlock Lifetime Pro — €4.99`) and falls back to `Unlock Lifetime Pro — $4.99` when offerings cannot be loaded.
+* While the user is not Pro: Midnight, Terminal, Aurora, Editorial, Neo-Brutal, and Custom Hex show lock badges. Tapping a locked theme, Remove Watermark, + Choose Photo, or Export LinkedIn PDF opens `PaywallBottomSheet`. `CardCanvas` forces the watermark and strips custom photos. Free accounts keep one brand profile; + Add Profile opens the paywall.
+* Local StoreKit testing: `ios/PenningPalConfiguration.storekit` defines the non-consumable `pro_lifetime` at 4.99. The Runner scheme selects that file so the iOS Simulator can complete a purchase without an Apple sandbox account.
 
 ### 4.5. Scratchpad Editor (`lib/features/scratchpad/`)
 * **Raw buffer invariant**: Hive still stores standard Markdown. The editor never rewrites that buffer into Unicode or HTML. Visual styling lives in the Quill document; debounced auto-save (400ms) serializes it back to Markdown before `UnicodeEngine`, `HtmlEngine`, `CardCanvas`, and `CarouselDeck` read it.

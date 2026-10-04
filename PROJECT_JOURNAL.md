@@ -1,9 +1,9 @@
 # PenningPal — Project Journal
 
 ## Active State
-- **Current Phase**: Phase 4 — Lifetime Paywall (complete)
+- **Current Phase**: Phase 4 — Lifetime Paywall (complete, including Task 4.4 production gating)
 - **Official name**: **PenningPal** (rebranded from working titles Clean Canvas / SocialSlate). User-facing strings, native display names, watermarks, and legal copy use PenningPal. Package IDs remain `com.cleancanvas.cleanCanvas` (iOS) and `com.cleancanvas.clean_canvas` (Android).
-- **Current Blocker**: None. Replace placeholder RevenueCat public keys and store product IDs before App Store / Play shipping.
+- **Current Blocker**: Google Play RevenueCat public key is still empty. Create `pro_lifetime` in App Store Connect / Play Console and attach it to the `default` offering and `pro_access` entitlement before store shipping. Simulator purchases use `ios/PenningPalConfiguration.storekit`.
 - **Target Stack**: Flutter (latest stable), State: Riverpod or Signals, Clipboard: `super_clipboard`, Storage: Hive / SharedPrefs
 - **Git Remote**: `origin` → https://github.com/BCuracao/PenningPal (`main`, public). Working tree tracks `origin/main`. GitHub redirects the former `BCuracao/SocialSlate` URL.
 
@@ -32,6 +32,7 @@
 - [x] Task 4.1: Integrate RevenueCat lifetime paywall gate.
 - [x] Task 4.2: Configure App branding (SocialSlate), offline legal pages, launcher icons, and release ProGuard rules.
 - [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
+- [x] Task 4.4: Production RevenueCat StoreKit 2 integration, dynamic localized price, strict Pro gating, and local StoreKit configuration.
 
 ## Session Log
 <!-- Agents append timestamped summaries of completed work here -->
@@ -282,3 +283,13 @@
 - Tests: `test/features/wysiwyg_editor_test.dart` plus updated toolbar, scratchpad, and export widget tests. `flutter analyze lib test` clean; `flutter test` 284 passed.
 - Modified: `pubspec.yaml`, `pubspec.lock`, `lib/features/scratchpad/render/markdown_quill_bridge.dart`, `lib/features/scratchpad/presentation/{scratchpad_screen,formatting_toolbar,quill_formatting,scratchpad_editor_styles,slide_break_embed}.dart`, removed `styled_markdown_controller.dart`, `test/features/{wysiwyg_editor_test,formatting_toolbar_test,scratchpad_state_test,export_actions_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still replace RevenueCat placeholder keys before store shipping; set `kDemoModeBypassPaywall` to `false` before production submission.
+
+### 2026-10-05 — Task 4.4: RevenueCat StoreKit 2 integration and strict gating
+- `AppConfig` now holds the Apple public SDK key, an empty Google key until Play Console is linked, entitlement `pro_access`, offering id `default`, and `kDemoModeBypassPaywall = false`.
+- `PaywallService` configures `purchases_flutter` with StoreKit 2, loads `Offerings.current` (falling back to `default`), purchases that package with `Purchases.purchasePackage`, and restores. A cancelled store sheet returns without an error alert.
+- `isProPurchasedProvider` is true when `pro_access` is active or demo bypass is on. `PaywallNotifier` keeps it current via `Purchases.addCustomerInfoUpdateListener`. `currentOfferingProvider` supplies the paywall CTA: `Unlock Lifetime Pro — ${priceString}`, with `Unlock Lifetime Pro — $4.99` when offerings are unavailable.
+- Free users still see lock badges on Midnight, Terminal, Aurora, Editorial, Neo-Brutal, and Custom. Tapping a locked theme, Remove Watermark, + Choose Photo, or Export LinkedIn PDF opens `PaywallBottomSheet`. `CardCanvas` forces the watermark and strips custom photos. Free accounts stay at one brand profile.
+- Added `ios/PenningPalConfiguration.storekit` (non-consumable `pro_lifetime` at 4.99) and selected it on the Runner scheme so the iOS Simulator can purchase without an Apple sandbox account.
+- Tests: `flutter analyze lib test` clean; `flutter test` 289 passed.
+- Modified: `lib/core/config/{app_config,revenue_cat_config}.dart`, `lib/features/paywall/{services/paywall_service,state/paywall_providers,presentation/paywall_bottom_sheet}.dart` (previous flat files re-export these), `test/features/paywall_test.dart`, `test/helpers/fake_paywall_service.dart`, `ios/PenningPalConfiguration.storekit`, `ios/Runner.xcodeproj/project.pbxproj`, `ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`, `docs/ARCHITECTURE.md`, `README.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: add the Google Play RevenueCat public key; create `pro_lifetime` in App Store Connect and Play Console and attach it to the `default` offering and `pro_access`; enable the In-App Purchase capability before device or TestFlight purchases.
