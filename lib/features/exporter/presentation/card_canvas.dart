@@ -4,11 +4,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/carousel_deck.dart';
+import '../models/font_pairing.dart';
 import '../models/slide_role.dart';
 import '../render/code_block_parser.dart';
 import '../templates/card_theme_config.dart';
 import 'markdown_card_content.dart';
 import 'syntax_card_block.dart';
+import 'widgets/cta_qr_code_widget.dart';
 
 /// Fixed-size social card. Stateless: every pixel is derived from props.
 ///
@@ -31,6 +33,10 @@ class CardCanvas extends StatelessWidget {
     this.avatarPath,
     this.avatarInitials = '',
     this.avatarColor,
+    this.fontPairingId,
+    this.logoPath,
+    this.showQrCode = false,
+    this.qrDestination,
   });
 
   /// Key attached to the [RepaintBoundary] — not this widget.
@@ -65,6 +71,18 @@ class CardCanvas extends StatelessWidget {
   /// Disc behind the CTA initials.
   final Color? avatarColor;
 
+  /// Curated pairing id. Pro pairings are ignored unless this canvas is entitled.
+  final String? fontPairingId;
+
+  /// On-device brand logo. Replaces the CTA avatar when set.
+  final String? logoPath;
+
+  /// When true, a CTA slide paints a QR code for [qrDestination].
+  final bool showQrCode;
+
+  /// Destination URL for the CTA QR. Invalid strings fall back in the widget.
+  final String? qrDestination;
+
   @override
   Widget build(BuildContext context) {
     final body = text.trim();
@@ -82,8 +100,15 @@ class CardCanvas extends StatelessWidget {
       index: slideIndex,
       totalSlides: totalSlides ?? 1,
     );
+    final pairing = FontPairings.resolve(
+      fontPairingId,
+      isProPurchased: isProPurchased,
+    );
 
-    return RepaintBoundary(
+    return CardTypography(
+      headerFamily: pairing?.headerFamily ?? displayTheme.fontFamily,
+      bodyFamily: pairing?.bodyFamily ?? displayTheme.fontFamily,
+      child: RepaintBoundary(
       key: canvasKey,
       child: SizedBox(
         key: const Key('card-canvas'),
@@ -127,6 +152,9 @@ class CardCanvas extends StatelessWidget {
                       avatarPath: avatarPath,
                       avatarInitials: avatarInitials,
                       avatarColor: avatarColor ?? displayTheme.accentColor,
+                      logoPath: logoPath,
+                      showQrCode: showQrCode,
+                      qrDestination: qrDestination,
                     )
                   : _PlainCard(
                       theme: displayTheme,
@@ -137,6 +165,9 @@ class CardCanvas extends StatelessWidget {
                       avatarPath: avatarPath,
                       avatarInitials: avatarInitials,
                       avatarColor: avatarColor ?? displayTheme.accentColor,
+                      logoPath: logoPath,
+                      showQrCode: showQrCode,
+                      qrDestination: qrDestination,
                     ),
             ),
             if (border != null)
@@ -157,12 +188,13 @@ class CardCanvas extends StatelessWidget {
                     totalSlides!,
                   ),
                   foreground: displayTheme.textColor,
-                  fontFamily: displayTheme.fontFamily,
+                  fontFamily: pairing?.bodyFamily ?? displayTheme.fontFamily,
                 ),
               ),
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -232,6 +264,9 @@ class _PlainCard extends StatelessWidget {
     required this.avatarPath,
     required this.avatarInitials,
     required this.avatarColor,
+    required this.logoPath,
+    required this.showQrCode,
+    required this.qrDestination,
   });
 
   final CardThemeConfig theme;
@@ -242,6 +277,9 @@ class _PlainCard extends StatelessWidget {
   final String? avatarPath;
   final String avatarInitials;
   final Color avatarColor;
+  final String? logoPath;
+  final bool showQrCode;
+  final String? qrDestination;
 
   @override
   Widget build(BuildContext context) {
@@ -273,6 +311,7 @@ class _PlainCard extends StatelessWidget {
                   handle: identity.handle,
                   theme: theme,
                   muted: muted,
+                  logoPath: logoPath,
                 ),
               ),
             ),
@@ -295,6 +334,9 @@ class _PlainCard extends StatelessWidget {
               avatarPath: avatarPath,
               avatarInitials: avatarInitials,
               avatarColor: avatarColor,
+              logoPath: logoPath,
+              showQrCode: showQrCode,
+              qrDestination: qrDestination,
             ),
           if (theme.showWatermark)
             SizedBox(
@@ -307,7 +349,7 @@ class _PlainCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: cardTypeStyle(
-                    fontFamily: theme.fontFamily,
+                    fontFamily: _bodyFamily(context, theme),
                     color: muted,
                     fontSize: CardLayout.watermarkSize,
                     fontWeight: FontWeight.w500,
@@ -333,6 +375,9 @@ class _TerminalCard extends StatelessWidget {
     required this.avatarPath,
     required this.avatarInitials,
     required this.avatarColor,
+    required this.logoPath,
+    required this.showQrCode,
+    required this.qrDestination,
   });
 
   final CardThemeConfig theme;
@@ -343,6 +388,9 @@ class _TerminalCard extends StatelessWidget {
   final String? avatarPath;
   final String avatarInitials;
   final Color avatarColor;
+  final String? logoPath;
+  final bool showQrCode;
+  final String? qrDestination;
 
   @override
   Widget build(BuildContext context) {
@@ -393,6 +441,9 @@ class _TerminalCard extends StatelessWidget {
                     avatarPath: avatarPath,
                     avatarInitials: avatarInitials,
                     avatarColor: avatarColor,
+                    logoPath: logoPath,
+                    showQrCode: showQrCode,
+                    qrDestination: qrDestination,
                   ),
               ],
             ),
@@ -412,7 +463,7 @@ class _TerminalCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: cardTypeStyle(
-                fontFamily: theme.fontFamily,
+                fontFamily: _bodyFamily(context, theme),
                 color: muted,
                 fontSize: CardLayout.watermarkSize,
                 fontWeight: FontWeight.w400,
@@ -570,7 +621,7 @@ class _SlideBody extends StatelessWidget {
           key: const Key('card-body-text'),
           textAlign: align,
           style: cardTypeStyle(
-            fontFamily: theme.fontFamily,
+            fontFamily: _bodyFamily(context, theme),
             color: emptyColor,
             fontSize: CardLayout.clampFontSize(CardMarkdownStyles.bodySize * scale),
             fontWeight: FontWeight.w500,
@@ -685,7 +736,7 @@ class _CoverEyebrow extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: cardTypeStyle(
-        fontFamily: theme.fontFamily,
+        fontFamily: _headerFamily(context, theme),
         color: theme.accentColor,
         fontSize: 26,
         fontWeight: FontWeight.w700,
@@ -705,6 +756,9 @@ class _CtaSignature extends StatelessWidget {
     required this.avatarPath,
     required this.avatarInitials,
     required this.avatarColor,
+    required this.logoPath,
+    required this.showQrCode,
+    required this.qrDestination,
   });
 
   final String? name;
@@ -714,12 +768,16 @@ class _CtaSignature extends StatelessWidget {
   final String? avatarPath;
   final String avatarInitials;
   final Color avatarColor;
+  final String? logoPath;
+  final bool showQrCode;
+  final String? qrDestination;
 
   @override
   Widget build(BuildContext context) {
     final hasName = name != null && name!.isNotEmpty;
     final tagline = (handle != null && handle!.isNotEmpty) ? handle! : null;
     final initials = avatarInitials.trim().isEmpty ? '?' : avatarInitials.trim();
+    final logo = _usablePath(logoPath);
 
     return Padding(
       key: const Key('card-cta-signature'),
@@ -729,13 +787,17 @@ class _CtaSignature extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _CreatorAvatar(
-                path: avatarPath,
-                initials: initials,
-                color: avatarColor,
-                textColor: theme.textColor,
-              ),
+              if (logo != null)
+                _BrandLogo(path: logo, size: 96)
+              else
+                _CreatorAvatar(
+                  path: avatarPath,
+                  initials: initials,
+                  color: avatarColor,
+                  textColor: theme.textColor,
+                ),
               const SizedBox(width: 24),
               Expanded(
                 child: Column(
@@ -749,7 +811,7 @@ class _CtaSignature extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: cardTypeStyle(
-                          fontFamily: theme.fontFamily,
+                          fontFamily: _headerFamily(context, theme),
                           color: theme.textColor,
                           fontSize: 40,
                           fontWeight: FontWeight.w800,
@@ -764,7 +826,7 @@ class _CtaSignature extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: cardTypeStyle(
-                            fontFamily: theme.fontFamily,
+                            fontFamily: _bodyFamily(context, theme),
                             color: muted,
                             fontSize: CardLayout.authorHandleSize,
                             fontWeight: FontWeight.w600,
@@ -775,6 +837,15 @@ class _CtaSignature extends StatelessWidget {
                   ],
                 ),
               ),
+              if (showQrCode) ...[
+                const SizedBox(width: 20),
+                CtaQrCodeWidget(
+                  destination: qrDestination,
+                  foregroundColor: theme.textColor,
+                  accentColor: theme.accentColor,
+                  size: 156,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 22),
@@ -783,7 +854,7 @@ class _CtaSignature extends StatelessWidget {
             key: const Key('card-cta-prompt'),
             textAlign: TextAlign.center,
             style: cardTypeStyle(
-              fontFamily: theme.fontFamily,
+              fontFamily: _headerFamily(context, theme),
               color: theme.accentColor,
               fontSize: 30,
               fontWeight: FontWeight.w700,
@@ -862,7 +933,8 @@ class _InitialsDisc extends StatelessWidget {
           initials,
           maxLines: 1,
           style: cardTypeStyle(
-            fontFamily: CardThemeConfig.fontInter,
+            fontFamily: CardTypography.maybeOf(context)?.headerFamily ??
+                CardThemeConfig.fontInter,
             color: textColor,
             fontSize: 28,
             fontWeight: FontWeight.w800,
@@ -880,55 +952,105 @@ class _AuthorHeader extends StatelessWidget {
     required this.handle,
     required this.theme,
     required this.muted,
+    this.logoPath,
   });
 
   final String? name;
   final String? handle;
   final CardThemeConfig theme;
   final Color muted;
+  final String? logoPath;
 
   @override
   Widget build(BuildContext context) {
     final hasName = name != null && name!.isNotEmpty;
     final hasHandle = handle != null && handle!.isNotEmpty;
+    final logo = _usablePath(logoPath);
 
-    return Column(
-      key: const Key('card-brand-slot'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        if (hasName)
-          Text(
-            name!,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: cardTypeStyle(
-              fontFamily: theme.fontFamily,
-              color: theme.textColor,
-              fontSize: CardLayout.authorNameSize,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
-            ),
+        if (logo != null) ...[
+          _BrandLogo(path: logo, size: 64),
+          const SizedBox(width: 16),
+        ],
+        Expanded(
+          child: Column(
+            key: const Key('card-brand-slot'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasName)
+                Text(
+                  name!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: cardTypeStyle(
+                    fontFamily: _headerFamily(context, theme),
+                    color: theme.textColor,
+                    fontSize: CardLayout.authorNameSize,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+              if (hasHandle)
+                Padding(
+                  padding: EdgeInsets.only(top: hasName ? 4 : 0),
+                  child: Text(
+                    handle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: cardTypeStyle(
+                      fontFamily: _bodyFamily(context, theme),
+                      color: muted,
+                      fontSize: CardLayout.authorHandleSize,
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+            ],
           ),
-        if (hasHandle)
-          Padding(
-            padding: EdgeInsets.only(top: hasName ? 4 : 0),
-            child: Text(
-              handle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: cardTypeStyle(
-                fontFamily: theme.fontFamily,
-                color: muted,
-                fontSize: CardLayout.authorHandleSize,
-                fontWeight: FontWeight.w500,
-                height: 1.2,
-              ),
-            ),
-          ),
+        ),
       ],
     );
   }
+}
+
+class _BrandLogo extends StatelessWidget {
+  const _BrandLogo({required this.path, required this.size});
+
+  final String path;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      key: const Key('card-brand-logo'),
+      borderRadius: BorderRadius.circular(16),
+      child: Image.file(
+        File(path),
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => SizedBox(width: size, height: size),
+      ),
+    );
+  }
+}
+
+String? _usablePath(String? path) {
+  final trimmed = path?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  return trimmed;
+}
+
+String _headerFamily(BuildContext context, CardThemeConfig theme) {
+  return CardTypography.maybeOf(context)?.headerFamily ?? theme.fontFamily;
+}
+
+String _bodyFamily(BuildContext context, CardThemeConfig theme) {
+  return CardTypography.maybeOf(context)?.bodyFamily ?? theme.fontFamily;
 }
 
 /// Splits the legacy single [author] string plus optional [authorHandle]

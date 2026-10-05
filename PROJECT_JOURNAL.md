@@ -1,7 +1,7 @@
 # PenningPal — Project Journal
 
 ## Active State
-- **Current Phase**: Phase 4 — Lifetime Paywall (complete, including Task 4.4 production gating)
+- **Current Phase**: Phase 4 — Brand kits, curated font pairings, and CTA QR codes (complete). Lifetime paywall gating from Task 4.4 still applies.
 - **Official name**: **PenningPal** (rebranded from working titles Clean Canvas / SocialSlate). User-facing strings, native display names, watermarks, and legal copy use PenningPal. Package ID is `com.shoebillsoftware.penningpal` on iOS and Android. The Dart package name is `penningpal`.
 - **Current Blocker**: Google Play RevenueCat public key is still empty. Create `pro_lifetime` in App Store Connect / Play Console and attach it to the `default` offering and `pro_access` entitlement before store shipping. Simulator purchases use `ios/PenningPalConfiguration.storekit`.
 - **Target Stack**: Flutter (latest stable), State: Riverpod or Signals, Clipboard: `super_clipboard`, Storage: Hive / SharedPrefs
@@ -35,7 +35,8 @@
 - [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
 - [x] Task 4.4: Production RevenueCat StoreKit 2 integration, dynamic localized price, strict Pro gating, and local StoreKit configuration.
 - [x] Phase 1: Platform character HUD, LinkedIn fold warning, framework templates, and native share sheet.
-- [x] Phase 4.2 (Phase 3): Specialized slide roles (Cover/Body/CTA), auto-fit font scaling, and thumbnail drag-and-drop reorder strip.
+- [x] Phase 3: Specialized slide roles (Cover/Body/CTA), auto-fit font scaling, and thumbnail drag-and-drop reorder strip.
+- [x] Phase 4: Curated Google Font pairings, reusable Brand Kits, and CTA QR code generator.
 
 ## Session Log
 <!-- Agents append timestamped summaries of completed work here -->
@@ -354,3 +355,12 @@
 - Tests: `flutter analyze lib test` clean; `flutter test` 325 passed. New coverage is `test/features/carousel_intelligence_test.dart`.
 - Modified: `lib/features/exporter/models/{slide_role,carousel_markdown}.dart`, `lib/features/exporter/templates/card_theme_config.dart`, `lib/features/exporter/presentation/{card_canvas,markdown_card_content,card_exporter_screen,card_inspect_modal}.dart`, `lib/features/exporter/presentation/widgets/slide_thumbnail_strip.dart`, `lib/features/exporter/render/carousel_batch_exporter.dart`, `lib/features/scratchpad/presentation/scratchpad_screen.dart`, `test/features/{carousel_intelligence_test,card_typography_test,carousel_deck_test,card_rasterizer_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.
+
+### 2026-10-05 — Phase 4: Brand kits, font pairings, and CTA QR codes
+- `google_fonts` was already at ^8.2.1 (newer than the requested ^6.2.1) and stayed there. Added `qr_flutter` ^4.1.0. QR codes are drawn on device. Font files still come from the existing `google_fonts` cache/fetch, the same way Inter already does.
+- `FontPairings` offers Modern Tech (Inter + JetBrains Mono, free), Editorial Authority (Playfair Display + Plus Jakarta Sans), High Impact (Montserrat bold + Open Sans), and Minimalist (Space Grotesk + DM Sans). The last three are Pro. A free tap opens `PaywallBottomSheet`. Headlines use the pairing’s header font; body, handles, and the watermark use the body font. Code stays JetBrains Mono.
+- `BrandKit` stores id, name, primary/secondary hex, font pairing id, optional logo path, and aspect ratio. Hive box `brand_kits_box` supports `getAllKits`, `saveKit`, and `deleteKit`. Free accounts can keep one kit; updating that kit is allowed. A second insert without Pro opens the paywall. One tap applies the palette, type, logo, and ratio. Logos are copied into application-support `brand_logos/` and never uploaded.
+- CTA slides get a destination field and “Show QR Code on CTA slide”. `QrImageView` sits beside the creator handle. Module color follows the card text color; the quiet zone is an accent-tinted plate. Empty, spaced, and non-http strings show a fallback instead of a code.
+- Tests: `flutter analyze lib test` clean; `flutter test` 341 passed. New coverage is `test/features/brand_kits_and_qr_test.dart`.
+- Modified: `pubspec.yaml`, `pubspec.lock`, `lib/main.dart`, `lib/features/exporter/models/{font_pairing,brand_kit}.dart`, `lib/features/exporter/storage/{brand_kit_storage,brand_logo_store}.dart`, `lib/features/exporter/state/brand_kit_notifier.dart`, `lib/features/exporter/presentation/widgets/{font_pairing_carousel,brand_kit_carousel,cta_qr_controls,cta_qr_code_widget}.dart`, `lib/features/exporter/presentation/{card_canvas,markdown_card_content,card_exporter_screen,card_inspect_modal}.dart`, `lib/features/exporter/templates/card_theme_config.dart`, `lib/features/exporter/render/carousel_batch_exporter.dart`, `lib/features/paywall/presentation/paywall_bottom_sheet.dart`, `test/features/{brand_kits_and_qr_test,carousel_deck_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases. A brand-new font pairing needs a network fetch the first time `google_fonts` has not cached that file.

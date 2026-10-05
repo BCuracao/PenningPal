@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/font_pairing.dart';
 import '../templates/card_theme_config.dart';
 
 /// Publication-grade markdown body for a social card.
@@ -35,10 +36,12 @@ class MarkdownCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final type = CardTypography.maybeOf(context);
     final styles = CardMarkdownStyles.from(
       theme: theme,
       fontScale: fontScale,
-      fontFamily: fontFamily,
+      fontFamily: type?.bodyFamily ?? fontFamily,
+      headerFontFamily: type?.headerFamily ?? fontFamily,
       headingScale: headingScale,
       tightenLineHeight: tightenLineHeight,
     );
@@ -126,6 +129,7 @@ class CardMarkdownStyles {
     required CardThemeConfig theme,
     required double fontScale,
     required String fontFamily,
+    String? headerFontFamily,
     double headingScale = 1,
     bool tightenLineHeight = false,
   }) {
@@ -144,6 +148,7 @@ class CardMarkdownStyles {
       return CardLayout.clampFontSize(base * scale * (heading ? headings : 1));
     }
 
+    final headingFamily = headerFontFamily ?? fontFamily;
     final paragraph = cardTypeStyle(
       fontFamily: fontFamily,
       color: text,
@@ -153,7 +158,7 @@ class CardMarkdownStyles {
     );
     return CardMarkdownStyles(
       h1: cardTypeStyle(
-        fontFamily: fontFamily,
+        fontFamily: headingFamily,
         color: text,
         fontSize: sized(h1Size, heading: true),
         fontWeight: FontWeight.w800,
@@ -161,7 +166,7 @@ class CardMarkdownStyles {
         letterSpacing: -0.8,
       ),
       h2: cardTypeStyle(
-        fontFamily: fontFamily,
+        fontFamily: headingFamily,
         color: text,
         fontSize: sized(h2Size, heading: true),
         fontWeight: FontWeight.w700,
@@ -169,7 +174,7 @@ class CardMarkdownStyles {
         letterSpacing: -0.5,
       ),
       h3: cardTypeStyle(
-        fontFamily: fontFamily,
+        fontFamily: headingFamily,
         color: text,
         fontSize: sized(h3Size, heading: true),
         fontWeight: FontWeight.w600,
@@ -587,6 +592,10 @@ TextStyle cardTypeStyle({
     fontStyle: fontStyle,
   );
   try {
+    final method = FontPairings.methodForFamily(fontFamily);
+    if (method != null) {
+      return method(textStyle: base);
+    }
     if (fontFamily == CardThemeConfig.fontJetBrainsMono) {
       return GoogleFonts.jetBrainsMono(textStyle: base);
     }

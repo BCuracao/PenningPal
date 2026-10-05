@@ -168,6 +168,32 @@ class CardThemeConfig {
     );
   }
 
+  /// Flat brand palette. Clears gradients and photo backdrops so the kit colors paint.
+  CardThemeConfig withBrandPalette({
+    required Color backgroundColor,
+    required Color textColor,
+    required Color accentColor,
+  }) {
+    return CardThemeConfig(
+      id: id,
+      name: name,
+      backgroundColor: backgroundColor,
+      textColor: textColor,
+      accentColor: accentColor,
+      fontFamily: fontFamily,
+      overlayGradients: const [],
+      borderWidth: borderWidth,
+      borderColor: borderColor,
+      showWatermark: showWatermark,
+      isPremium: isPremium,
+      variant: variant,
+      chromeTitle: chromeTitle,
+      blurSigma: blurSigma,
+      overlayOpacity: overlayOpacity,
+      isDarkOverlay: isDarkOverlay,
+    );
+  }
+
   CardThemeConfig copyWith({
     String? id,
     String? name,

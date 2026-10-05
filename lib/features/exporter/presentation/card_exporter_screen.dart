@@ -13,14 +13,17 @@ import '../../../core/persistence/settings_storage.dart';
 import '../../paywall/paywall_bottom_sheet.dart';
 import '../../paywall/paywall_provider.dart';
 import '../../scratchpad/state/scratchpad_notifier.dart';
+import '../models/brand_kit.dart';
 import '../models/carousel_deck.dart';
 import '../models/carousel_markdown.dart';
+import '../models/font_pairing.dart';
 import '../models/slide_role.dart';
 import '../render/card_export_service.dart';
 import '../render/card_rasterizer.dart';
 import '../render/carousel_batch_exporter.dart';
 import '../render/photo_backdrop_store.dart';
 import '../services/share_export_service.dart';
+import '../state/brand_kit_notifier.dart';
 import '../state/card_settings.dart';
 import '../templates/card_theme_config.dart';
 import 'brand_color_picker_sheet.dart';
@@ -28,6 +31,9 @@ import 'brand_profile_sheet.dart';
 import 'card_canvas.dart';
 import 'card_customizer_controls.dart';
 import 'card_inspect_modal.dart';
+import 'widgets/brand_kit_carousel.dart';
+import 'widgets/cta_qr_controls.dart';
+import 'widgets/font_pairing_carousel.dart';
 import 'widgets/slide_thumbnail_strip.dart';
 
 /// Live preview + rasterize flow for visual quote / carousel cards.
@@ -85,6 +91,11 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   int? _exportCurrent;
   int? _exportTotal;
   bool _appliedProfileTheme = false;
+  String? _fontPairingId;
+  String? _logoPath;
+  String? _activeKitId;
+  bool _showQrCode = false;
+  late final TextEditingController _qrController;
 
   /// Most recent PNG capture, retained for tests.
   @visibleForTesting
@@ -111,6 +122,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     super.initState();
     _markdown = widget.text;
     _pageController = PageController();
+    _qrController = TextEditingController();
+    _qrController.addListener(_onQrChanged);
   }
 
   @override
@@ -135,8 +148,14 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     }
   }
 
+  void _onQrChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _qrController.removeListener(_onQrChanged);
+    _qrController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -183,7 +202,12 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: _AspectSwitch(
                   selected: _aspect,
-                  onChanged: _isBusy ? null : (next) => setState(() => _aspect = next),
+                  onChanged: _isBusy
+                      ? null
+                      : (next) => setState(() {
+                            _aspect = next;
+                            _activeKitId = null;
+                          }),
                 ),
               ),
               Expanded(
@@ -196,57 +220,85 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.sizeOf(context).height * 0.5,
                 ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _ProfileSwitcherPill(
-                        settings: settings,
-                        enabled: !_isBusy,
-                        onTap: () => unawaited(_openProfileSwitcher()),
-                      ),
-                      _CharacterMeter(text: _meterText),
-                      _WatermarkToggle(
-                        isProPurchased: isProPurchased,
-                        canAccessPro: canAccessPro,
-                        removeWatermark: !_theme.showWatermark,
-                        onChanged: _onRemoveWatermarkChanged,
-                      ),
-                      CardCustomizerControls(
-                        theme: _theme,
-                        isProPurchased: isProPurchased,
-                        canAccessPro: canAccessPro,
-                        enabled: !_isBusy,
-                        onChanged: _onPhotoBackdropChanged,
-                        onPickPhoto: () => unawaited(_pickPhotoBackdrop()),
-                        onLockedFeature: () => unawaited(_promptUpgrade(
-                          highlight:
-                              'Custom photo backdrops with blur and contrast scrim',
-                        )),
-                      ),
-                      _TemplateCarousel(
-                        selected: _theme,
-                        isProPurchased: isProPurchased,
-                        onSelected: _onThemeSelected,
-                      ),
-                      SafeArea(
-                        top: false,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                          child: _ExportActionBar(
-                            busy: _busy,
-                            isCarousel: _deck.isCarousel,
-                            slideCount: _deck.totalSlides,
-                            isProPurchased: isProPurchased,
-                            onShare: _shareCard,
-                            onSave: _saveToPhotos,
-                            onCopy: _copyCard,
-                            onExportPdf: _exportLinkedInPdf,
-                          ),
+                child: Column(
+                  children: [
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ProfileSwitcherPill(
+                              settings: settings,
+                              enabled: !_isBusy,
+                              onTap: () => unawaited(_openProfileSwitcher()),
+                            ),
+                            FontPairingCarousel(
+                              selectedId: _fontPairingId,
+                              isProPurchased: isProPurchased,
+                              enabled: !_isBusy,
+                              onSelected: _onFontPairingSelected,
+                            ),
+                            BrandKitCarousel(
+                              kits: ref.watch(brandKitsProvider),
+                              selectedId: _activeKitId,
+                              enabled: !_isBusy,
+                              onSelected: _applyBrandKit,
+                              onSave: () => unawaited(_saveBrandKit()),
+                              onDelete: (kit) => unawaited(_deleteBrandKit(kit)),
+                            ),
+                            if (_roleAt(_safeSlideIndex) == SlideRole.cta)
+                              CtaQrControls(
+                                controller: _qrController,
+                                showQrCode: _showQrCode,
+                                enabled: !_isBusy,
+                                onShowQrCode: (value) =>
+                                    setState(() => _showQrCode = value),
+                              ),
+                            _CharacterMeter(text: _meterText),
+                            _WatermarkToggle(
+                              isProPurchased: isProPurchased,
+                              canAccessPro: canAccessPro,
+                              removeWatermark: !_theme.showWatermark,
+                              onChanged: _onRemoveWatermarkChanged,
+                            ),
+                            CardCustomizerControls(
+                              theme: _theme,
+                              isProPurchased: isProPurchased,
+                              canAccessPro: canAccessPro,
+                              enabled: !_isBusy,
+                              onChanged: _onPhotoBackdropChanged,
+                              onPickPhoto: () => unawaited(_pickPhotoBackdrop()),
+                              onLockedFeature: () => unawaited(_promptUpgrade(
+                                highlight:
+                                    'Custom photo backdrops with blur and contrast scrim',
+                              )),
+                            ),
+                            _TemplateCarousel(
+                              selected: _theme,
+                              isProPurchased: isProPurchased,
+                              onSelected: _onThemeSelected,
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        child: _ExportActionBar(
+                          busy: _busy,
+                          isCarousel: _deck.isCarousel,
+                          slideCount: _deck.totalSlides,
+                          isProPurchased: isProPurchased,
+                          onShare: _shareCard,
+                          onSave: _saveToPhotos,
+                          onCopy: _copyCard,
+                          onExportPdf: _exportLinkedInPdf,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -277,6 +329,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     }
     setState(() {
       _theme = preset.withExporterChrome(_theme);
+      _activeKitId = null;
     });
     unawaited(
       ref.read(cardSettingsProvider.notifier).update(defaultThemeId: preset.id),
@@ -306,6 +359,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
         backgroundColor: picked.background,
         textColor: picked.text,
       ).withExporterChrome(_theme);
+      _activeKitId = null;
     });
   }
 
@@ -357,6 +411,124 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     await PaywallBottomSheet.show(context, highlightBenefit: highlight);
   }
 
+  void _onFontPairingSelected(FontPairing pairing) {
+    if (pairing.isPro && !ref.read(canAccessProFeatureProvider)) {
+      unawaited(
+        _promptUpgrade(highlight: '${pairing.name} font pairing'),
+      );
+      return;
+    }
+    setState(() {
+      _fontPairingId = pairing.id;
+      _activeKitId = null;
+    });
+  }
+
+  void _applyBrandKit(BrandKit kit) {
+    final pairing = FontPairings.byId(kit.fontPairingId);
+    final fontLocked = pairing != null &&
+        pairing.isPro &&
+        !ref.read(canAccessProFeatureProvider);
+    setState(() {
+      _activeKitId = kit.id;
+      _aspect = kit.aspectRatio;
+      _theme = BrandPalette.apply(_theme, kit);
+      _logoPath = kit.logoPath;
+      if (!fontLocked && pairing != null) {
+        _fontPairingId = pairing.id;
+      }
+    });
+    unawaited(_precacheLogo(kit.logoPath));
+    if (fontLocked) {
+      unawaited(
+        _promptUpgrade(highlight: '${pairing.name} font pairing'),
+      );
+    }
+  }
+
+  Future<void> _saveBrandKit() async {
+    if (_isBusy) return;
+    final storage = ref.read(brandKitStorageProvider);
+    final probe = BrandKit(
+      id: generateBrandKitId(),
+      name: 'Personal Brand',
+      primaryColor: HexColor.format(_theme.backgroundColor),
+      secondaryColor: HexColor.format(_theme.textColor),
+      fontPairingId: _fontPairingId ?? FontPairings.modernTech.id,
+      logoPath: _logoPath,
+      aspectRatio: _aspect,
+    );
+    if (!storage.canSave(
+      probe,
+      isProPurchased: ref.read(isProPurchasedProvider),
+    )) {
+      await _promptUpgrade(highlight: 'Free accounts can save 1 brand kit');
+      return;
+    }
+    if (!mounted) return;
+    final draft = await BrandKitSaveSheet.show(context);
+    if (draft == null || !mounted) return;
+    final kit = probe.copyWith(
+      name: draft.name,
+      logoPath: draft.logoPath ?? probe.logoPath,
+    );
+    final saved = await ref.read(brandKitsProvider.notifier).saveKit(
+          kit,
+          isProPurchased: ref.read(isProPurchasedProvider),
+        );
+    if (!mounted) return;
+    if (!saved) {
+      await _promptUpgrade(highlight: 'Free accounts can save 1 brand kit');
+      return;
+    }
+    setState(() {
+      _activeKitId = kit.id;
+      _logoPath = kit.logoPath;
+    });
+    unawaited(_precacheLogo(kit.logoPath));
+  }
+
+  Future<void> _deleteBrandKit(BrandKit kit) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete brand kit?'),
+          content: Text('“${kit.name}” will be removed from this device.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              key: const Key('brand-kit-delete-confirm'),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(brandKitsProvider.notifier).deleteKit(kit.id);
+    if (!mounted) return;
+    if (_activeKitId == kit.id) {
+      setState(() => _activeKitId = null);
+    }
+  }
+
+  Future<void> _precacheLogo(String? path) async {
+    final trimmed = path?.trim();
+    if (trimmed == null || trimmed.isEmpty || !mounted) return;
+    final file = File(trimmed);
+    if (!await file.exists() || !mounted) return;
+    try {
+      await precacheImage(FileImage(file), context);
+    } catch (_) {
+      // The canvas errorBuilder keeps the layout if the file cannot decode.
+    }
+  }
+
   Future<void> _openProfileSwitcher() async {
     final selected = await BrandProfileSheet.show(context);
     if (selected == null || !mounted) return;
@@ -376,6 +548,12 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     setState(() {
       _theme = resolved.withExporterChrome(_theme);
     });
+  }
+
+  int get _safeSlideIndex {
+    final total = _deck.totalSlides;
+    if (total <= 1) return 0;
+    return _slideIndex.clamp(0, total - 1);
   }
 
   GlobalKey _previewKeyFor(int index) =>
@@ -425,6 +603,10 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
         avatarPath: avatar.path,
         avatarInitials: avatar.initials,
         avatarColor: avatar.color,
+        fontPairingId: _fontPairingId,
+        logoPath: _logoPath,
+        showQrCode: _showQrCode,
+        qrDestination: _qrController.text,
         currentSlideIndex: 0,
         totalSlides: deck.totalSlides,
         onInspect: _isBusy ? null : () => unawaited(_openInspect(deck.slideAt(0))),
@@ -451,6 +633,10 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
             avatarPath: avatar.path,
             avatarInitials: avatar.initials,
             avatarColor: avatar.color,
+            fontPairingId: _fontPairingId,
+            logoPath: _logoPath,
+            showQrCode: _showQrCode,
+            qrDestination: _qrController.text,
             currentSlideIndex: index,
             totalSlides: deck.totalSlides,
             onInspect: _isBusy
@@ -603,6 +789,10 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       avatarPath: avatar.path,
       avatarInitials: avatar.initials,
       avatarColor: avatar.color,
+      fontPairingId: _fontPairingId,
+      logoPath: _logoPath,
+      showQrCode: _showQrCode,
+      qrDestination: _qrController.text,
     );
   }
 
@@ -644,6 +834,10 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       avatarPath: _creatorAvatar.path,
       avatarInitials: _creatorAvatar.initials,
       avatarColor: _creatorAvatar.color,
+      fontPairingId: _fontPairingId,
+      logoPath: _logoPath,
+      showQrCode: _showQrCode,
+      qrDestination: _qrController.text,
       onProgress: (current, total) {
         if (!mounted) return;
         setState(() {
@@ -1036,6 +1230,10 @@ class _ScaledPreview extends StatelessWidget {
     this.avatarPath,
     this.avatarInitials = '',
     this.avatarColor,
+    this.fontPairingId,
+    this.logoPath,
+    this.showQrCode = false,
+    this.qrDestination,
     this.onInspect,
   });
 
@@ -1052,6 +1250,10 @@ class _ScaledPreview extends StatelessWidget {
   final String? avatarPath;
   final String avatarInitials;
   final Color? avatarColor;
+  final String? fontPairingId;
+  final String? logoPath;
+  final bool showQrCode;
+  final String? qrDestination;
   final VoidCallback? onInspect;
 
   @override
@@ -1094,6 +1296,10 @@ class _ScaledPreview extends StatelessWidget {
                   avatarPath: avatarPath,
                   avatarInitials: avatarInitials,
                   avatarColor: avatarColor,
+                  fontPairingId: fontPairingId,
+                  logoPath: logoPath,
+                  showQrCode: showQrCode,
+                  qrDestination: qrDestination,
                 ),
               ),
             ),

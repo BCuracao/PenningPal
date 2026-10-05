@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/persistence/draft_storage.dart';
 import 'core/persistence/profile_storage.dart';
 import 'core/persistence/settings_storage.dart';
+import 'features/exporter/state/brand_kit_notifier.dart';
 import 'features/exporter/state/card_settings.dart';
+import 'features/exporter/storage/brand_kit_storage.dart';
 import 'features/paywall/paywall_provider.dart';
 import 'features/paywall/paywall_service.dart';
 import 'features/scratchpad/presentation/scratchpad_screen.dart';
@@ -21,6 +23,9 @@ Future<void> main() async {
 
   final profiles = ProfileStorage();
   await profiles.init();
+
+  final brandKits = BrandKitStorage();
+  await brandKits.init();
   final saved = settings.load();
   profiles.seedFrom(
     authorName: saved.authorName,
@@ -40,6 +45,7 @@ Future<void> main() async {
         draftStorageProvider.overrideWithValue(drafts),
         settingsStorageProvider.overrideWithValue(settings),
         profileStorageProvider.overrideWithValue(profiles),
+        brandKitStorageProvider.overrideWithValue(brandKits),
         paywallServiceProvider.overrideWithValue(paywall),
       ],
       child: const CleanCanvasApp(),

@@ -637,6 +637,10 @@ class _FakeBatchExporter extends CarouselBatchExporter {
     String? avatarPath,
     String? avatarInitials,
     Color? avatarColor,
+    String? fontPairingId,
+    String? logoPath,
+    bool showQrCode = false,
+    String? qrDestination,
     void Function(int current, int total)? onProgress,
   }) async {
     calls += 1;
@@ -669,6 +673,10 @@ class _GatedBatchExporter extends CarouselBatchExporter {
     String? avatarPath,
     String? avatarInitials,
     Color? avatarColor,
+    String? fontPairingId,
+    String? logoPath,
+    bool showQrCode = false,
+    String? qrDestination,
     void Function(int current, int total)? onProgress,
   }) async {
     onProgress?.call(1, 3);

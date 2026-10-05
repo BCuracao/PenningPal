@@ -36,6 +36,10 @@ class CarouselBatchExporter {
     String? avatarPath,
     String? avatarInitials,
     Color? avatarColor,
+    String? fontPairingId,
+    String? logoPath,
+    bool showQrCode = false,
+    String? qrDestination,
     void Function(int current, int total)? onProgress,
   }) async {
     SlideRole roleAt(int index) {
@@ -76,6 +80,10 @@ class CarouselBatchExporter {
                   avatarPath: avatarPath,
                   avatarInitials: avatarInitials ?? '',
                   avatarColor: avatarColor,
+                  fontPairingId: fontPairingId,
+                  logoPath: logoPath,
+                  showQrCode: showQrCode,
+                  qrDestination: qrDestination,
                 ),
               ),
             );
@@ -91,6 +99,16 @@ class CarouselBatchExporter {
         if (await file.exists() && context.mounted) {
           try {
             await precacheImage(FileImage(file), context);
+          } catch (_) {
+            // Capture still proceeds; Image.file errorBuilder keeps layout.
+          }
+        }
+      }
+      if (logoPath != null && logoPath.isNotEmpty) {
+        final logo = File(logoPath);
+        if (await logo.exists() && context.mounted) {
+          try {
+            await precacheImage(FileImage(logo), context);
           } catch (_) {
             // Capture still proceeds; Image.file errorBuilder keeps layout.
           }

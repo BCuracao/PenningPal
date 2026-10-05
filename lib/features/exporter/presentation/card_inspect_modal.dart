@@ -23,6 +23,10 @@ class CardInspectModal extends StatefulWidget {
     this.avatarPath,
     this.avatarInitials = '',
     this.avatarColor,
+    this.fontPairingId,
+    this.logoPath,
+    this.showQrCode = false,
+    this.qrDestination,
   });
 
   final String text;
@@ -37,6 +41,10 @@ class CardInspectModal extends StatefulWidget {
   final String? avatarPath;
   final String avatarInitials;
   final Color? avatarColor;
+  final String? fontPairingId;
+  final String? logoPath;
+  final bool showQrCode;
+  final String? qrDestination;
 
   /// Opens a dimmed full-screen inspect route.
   static Future<void> show({
@@ -53,6 +61,10 @@ class CardInspectModal extends StatefulWidget {
     String? avatarPath,
     String avatarInitials = '',
     Color? avatarColor,
+    String? fontPairingId,
+    String? logoPath,
+    bool showQrCode = false,
+    String? qrDestination,
   }) {
     return showGeneralDialog<void>(
       context: context,
@@ -76,6 +88,10 @@ class CardInspectModal extends StatefulWidget {
             avatarPath: avatarPath,
             avatarInitials: avatarInitials,
             avatarColor: avatarColor,
+            fontPairingId: fontPairingId,
+            logoPath: logoPath,
+            showQrCode: showQrCode,
+            qrDestination: qrDestination,
           ),
         );
       },
@@ -143,6 +159,10 @@ class _CardInspectModalState extends State<CardInspectModal> {
                             avatarPath: widget.avatarPath,
                             avatarInitials: widget.avatarInitials,
                             avatarColor: widget.avatarColor,
+                            fontPairingId: widget.fontPairingId,
+                            logoPath: widget.logoPath,
+                            showQrCode: widget.showQrCode,
+                            qrDestination: widget.qrDestination,
                           ),
                         ),
                       ),

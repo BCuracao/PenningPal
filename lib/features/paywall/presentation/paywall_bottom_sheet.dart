@@ -146,6 +146,10 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
               icon: Icons.photo_outlined,
               label: 'Custom photo backdrops with blur and contrast scrim',
             ),
+            const _BenefitRow(
+              icon: Icons.font_download_outlined,
+              label: 'Curated font pairings and unlimited brand kits',
+            ),
             const SizedBox(height: 20),
             Text(
               'One-time purchase · Lifetime access',
