@@ -194,6 +194,8 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
+      await tester.tap(find.byKey(const Key('exporter-tab-design')));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('profile-switcher-pill')), findsOneWidget);
       await tester.tap(find.byKey(const Key('profile-switcher-pill')));

@@ -314,6 +314,11 @@ void main() {
     testWidgets('preview, aspect switch, templates, and character meter', (
       tester,
     ) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       const draft = 'A short quote for the card.';
       await tester.pumpWidget(
         wrapExporter(const MaterialApp(home: CardExporterScreen(text: draft))),
@@ -337,6 +342,8 @@ void main() {
         const Size(1080, 1920),
       );
 
+      await tester.tap(find.byKey(const Key('exporter-tab-design')));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(
         find.byKey(const Key('card-template-terminal')),
       );

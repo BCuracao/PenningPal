@@ -96,6 +96,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   String? _activeKitId;
   bool _showQrCode = false;
   late final TextEditingController _qrController;
+  _ExporterPanel _panel = _ExporterPanel.slides;
 
   /// Most recent PNG capture, retained for tests.
   @visibleForTesting
@@ -274,108 +275,131 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
         ? 0
         : _slideIndex.clamp(0, deck.totalSlides - 1);
 
-    return SingleChildScrollView(
-      key: const Key('card-exporter-controls'),
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SlideRoleSelector(
-                role: _roleAt(safeIndex),
-                onChanged: _isBusy ? null : _setRole,
-              ),
+    return Column(
+      children: [
+        _PanelSwitch(
+          selected: _panel,
+          onChanged: _isBusy
+              ? null
+              : (next) => setState(() => _panel = next),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            key: const Key('card-exporter-controls'),
+            physics: const BouncingScrollPhysics(),
+            child: _panel == _ExporterPanel.slides
+                ? _buildSlidesPanel(deck: deck, safeIndex: safeIndex)
+                : _buildDesignPanel(
+                    isProPurchased: isProPurchased,
+                    canAccessPro: canAccessPro,
+                    settings: settings,
+                  ),
+          ),
+        ),
+        _ExportDock(
+          busy: _busy,
+          isCarousel: deck.isCarousel,
+          slideCount: deck.totalSlides,
+          isProPurchased: isProPurchased,
+          meterText: _meterText,
+          onShare: _shareCard,
+          onSave: _saveToPhotos,
+          onCopy: _copyCard,
+          onExportPdf: _exportLinkedInPdf,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSlidesPanel({
+    required CarouselDeck deck,
+    required int safeIndex,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _MicroHeader('SLIDE SEQUENCE & ROLES'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: SlideRoleSelector(
+            role: _roleAt(safeIndex),
+            onChanged: _isBusy ? null : _setRole,
+          ),
+        ),
+        SlideThumbnailStrip(
+          slides: deck.slides.isEmpty ? const [''] : deck.slides,
+          activeIndex: safeIndex,
+          enabled: !_isBusy,
+          onSelect: (index) => unawaited(_goToPage(index)),
+          onReorder: _reorderSlides,
+          onDuplicate: _duplicateSlide,
+          onDelete: _deleteSlide,
+          onAdd: _addSlide,
+        ),
+        if (_roleAt(safeIndex) == SlideRole.cta)
+          CtaQrControls(
+            controller: _qrController,
+            showQrCode: _showQrCode,
+            enabled: !_isBusy,
+            onShowQrCode: (value) => setState(() => _showQrCode = value),
+          ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildDesignPanel({
+    required bool isProPurchased,
+    required bool canAccessPro,
+    required CardSettings settings,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BrandKitBar(
+          kits: ref.watch(brandKitsProvider),
+          selectedId: _activeKitId,
+          settings: settings,
+          enabled: !_isBusy,
+          onSelected: _applyBrandKit,
+          onSave: () => unawaited(_saveBrandKit()),
+          onDelete: (kit) => unawaited(_deleteBrandKit(kit)),
+          onSwitchProfile: () => unawaited(_openProfileSwitcher()),
+        ),
+        const _MicroHeader('TYPOGRAPHY'),
+        FontPairingCarousel(
+          selectedId: _fontPairingId,
+          isProPurchased: isProPurchased,
+          enabled: !_isBusy,
+          onSelected: _onFontPairingSelected,
+        ),
+        const _MicroHeader('COLOR THEME'),
+        _TemplateCarousel(
+          selected: _theme,
+          isProPurchased: isProPurchased,
+          onSelected: _onThemeSelected,
+        ),
+        CardCustomizerControls(
+          theme: _theme,
+          isProPurchased: isProPurchased,
+          canAccessPro: canAccessPro,
+          enabled: !_isBusy,
+          onChanged: _onPhotoBackdropChanged,
+          onPickPhoto: () => unawaited(_pickPhotoBackdrop()),
+          onLockedFeature: () => unawaited(
+            _promptUpgrade(
+              highlight: 'Custom photo backdrops with blur and contrast scrim',
             ),
           ),
-          SlideThumbnailStrip(
-            slides: deck.slides.isEmpty ? const [''] : deck.slides,
-            activeIndex: safeIndex,
-            enabled: !_isBusy,
-            onSelect: (index) => unawaited(_goToPage(index)),
-            onReorder: _reorderSlides,
-            onDuplicate: _duplicateSlide,
-            onDelete: _deleteSlide,
-            onAdd: _addSlide,
-          ),
-          if (deck.isCarousel)
-            _CarouselDots(
-              count: deck.totalSlides,
-              index: safeIndex,
-              onSelected: _isBusy
-                  ? null
-                  : (index) => unawaited(_goToPage(index)),
-            ),
-          BrandKitCarousel(
-            kits: ref.watch(brandKitsProvider),
-            selectedId: _activeKitId,
-            enabled: !_isBusy,
-            onSelected: _applyBrandKit,
-            onSave: () => unawaited(_saveBrandKit()),
-            onDelete: (kit) => unawaited(_deleteBrandKit(kit)),
-          ),
-          FontPairingCarousel(
-            selectedId: _fontPairingId,
-            isProPurchased: isProPurchased,
-            enabled: !_isBusy,
-            onSelected: _onFontPairingSelected,
-          ),
-          _ProfileSwitcherPill(
-            settings: settings,
-            enabled: !_isBusy,
-            onTap: () => unawaited(_openProfileSwitcher()),
-          ),
-          _TemplateCarousel(
-            selected: _theme,
-            isProPurchased: isProPurchased,
-            onSelected: _onThemeSelected,
-          ),
-          _WatermarkToggle(
-            isProPurchased: isProPurchased,
-            canAccessPro: canAccessPro,
-            removeWatermark: !_theme.showWatermark,
-            onChanged: _onRemoveWatermarkChanged,
-          ),
-          CardCustomizerControls(
-            theme: _theme,
-            isProPurchased: isProPurchased,
-            canAccessPro: canAccessPro,
-            enabled: !_isBusy,
-            onChanged: _onPhotoBackdropChanged,
-            onPickPhoto: () => unawaited(_pickPhotoBackdrop()),
-            onLockedFeature: () => unawaited(
-              _promptUpgrade(
-                highlight:
-                    'Custom photo backdrops with blur and contrast scrim',
-              ),
-            ),
-          ),
-          if (_roleAt(safeIndex) == SlideRole.cta)
-            CtaQrControls(
-              controller: _qrController,
-              showQrCode: _showQrCode,
-              enabled: !_isBusy,
-              onShowQrCode: (value) => setState(() => _showQrCode = value),
-            ),
-          _CharacterMeter(text: _meterText),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: _ExportActionBar(
-              busy: _busy,
-              isCarousel: deck.isCarousel,
-              slideCount: deck.totalSlides,
-              isProPurchased: isProPurchased,
-              onShare: _shareCard,
-              onSave: _saveToPhotos,
-              onCopy: _copyCard,
-              onExportPdf: _exportLinkedInPdf,
-            ),
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
+        ),
+        _WatermarkToggle(
+          isProPurchased: isProPurchased,
+          canAccessPro: canAccessPro,
+          removeWatermark: !_theme.showWatermark,
+          onChanged: _onRemoveWatermarkChanged,
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 
@@ -1093,7 +1117,133 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   }
 }
 
+enum _ExporterPanel { slides, design }
+
 enum _ExportAction { share, save, copy, pdf }
+
+class _PanelSwitch extends StatelessWidget {
+  const _PanelSwitch({required this.selected, required this.onChanged});
+
+  final _ExporterPanel selected;
+  final ValueChanged<_ExporterPanel>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = GoogleFonts.inter(
+      fontWeight: FontWeight.w600,
+      fontSize: 13,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      child: SegmentedButton<_ExporterPanel>(
+        key: const Key('exporter-control-tabs'),
+        expandedInsets: EdgeInsets.zero,
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment<_ExporterPanel>(
+            value: _ExporterPanel.slides,
+            label: Text('Slides', key: const Key('exporter-tab-slides')),
+          ),
+          ButtonSegment<_ExporterPanel>(
+            value: _ExporterPanel.design,
+            label: Text('Design', key: const Key('exporter-tab-design')),
+          ),
+        ],
+        selected: {selected},
+        onSelectionChanged: onChanged == null
+            ? null
+            : (next) {
+                if (next.isEmpty) return;
+                onChanged!(next.single);
+              },
+        style: ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: WidgetStatePropertyAll(labelStyle),
+        ),
+      ),
+    );
+  }
+}
+
+class _MicroHeader extends StatelessWidget {
+  const _MicroHeader(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 2),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.15,
+          color: colors.onSurface.withValues(alpha: 0.45),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportDock extends StatelessWidget {
+  const _ExportDock({
+    required this.busy,
+    required this.isCarousel,
+    required this.slideCount,
+    required this.isProPurchased,
+    required this.meterText,
+    required this.onShare,
+    required this.onSave,
+    required this.onCopy,
+    required this.onExportPdf,
+  });
+
+  final _ExportAction? busy;
+  final bool isCarousel;
+  final int slideCount;
+  final bool isProPurchased;
+  final String meterText;
+  final ValueChanged<BuildContext> onShare;
+  final VoidCallback onSave;
+  final VoidCallback onCopy;
+  final ValueChanged<BuildContext> onExportPdf;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(
+          top: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.45)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _CharacterMeter(text: meterText),
+            _ExportActionBar(
+              busy: busy,
+              isCarousel: isCarousel,
+              slideCount: slideCount,
+              isProPurchased: isProPurchased,
+              onShare: onShare,
+              onSave: onSave,
+              onCopy: onCopy,
+              onExportPdf: onExportPdf,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _ExportActionBar extends StatelessWidget {
   const _ExportActionBar({
@@ -1399,22 +1549,114 @@ class _AspectSwitch extends StatelessWidget {
   }
 }
 
-class _ProfileSwitcherPill extends StatelessWidget {
-  const _ProfileSwitcherPill({
+class _BrandKitBar extends StatelessWidget {
+  const _BrandKitBar({
+    required this.kits,
+    required this.selectedId,
     required this.settings,
     required this.enabled,
-    required this.onTap,
+    required this.onSelected,
+    required this.onSave,
+    required this.onDelete,
+    required this.onSwitchProfile,
   });
 
+  final List<BrandKit> kits;
+  final String? selectedId;
   final CardSettings settings;
   final bool enabled;
-  final VoidCallback onTap;
+  final ValueChanged<BrandKit> onSelected;
+  final VoidCallback onSave;
+  final ValueChanged<BrandKit> onDelete;
+  final VoidCallback onSwitchProfile;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _BrandSelector(
+              kits: kits,
+              selectedId: selectedId,
+              settings: settings,
+              enabled: enabled,
+              onSelected: onSelected,
+              onDelete: onDelete,
+              onSwitchProfile: onSwitchProfile,
+            ),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton.icon(
+            key: const Key('brand-kit-save'),
+            onPressed: enabled ? onSave : null,
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(
+              'Save Kit',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandChoice {
+  const _BrandChoice._({this.kit, this.identity = false, this.delete = false});
+
+  factory _BrandChoice.select(BrandKit kit) => _BrandChoice._(kit: kit);
+
+  factory _BrandChoice.delete(BrandKit kit) =>
+      _BrandChoice._(kit: kit, delete: true);
+
+  const _BrandChoice.identity() : this._(identity: true);
+
+  final BrandKit? kit;
+  final bool identity;
+  final bool delete;
+}
+
+class _BrandSelector extends StatelessWidget {
+  const _BrandSelector({
+    required this.kits,
+    required this.selectedId,
+    required this.settings,
+    required this.enabled,
+    required this.onSelected,
+    required this.onDelete,
+    required this.onSwitchProfile,
+  });
+
+  final List<BrandKit> kits;
+  final String? selectedId;
+  final CardSettings settings;
+  final bool enabled;
+  final ValueChanged<BrandKit> onSelected;
+  final ValueChanged<BrandKit> onDelete;
+  final VoidCallback onSwitchProfile;
+
+  @override
+  Widget build(BuildContext context) {
     final profile = settings.activeProfile;
-    final name =
+    BrandKit? active;
+    for (final kit in kits) {
+      if (kit.id == selectedId) {
+        active = kit;
+        break;
+      }
+    }
+    final label =
+        active?.name ??
         profile?.displayName ??
         (settings.authorName.trim().isNotEmpty
             ? settings.authorName.trim()
@@ -1423,44 +1665,54 @@ class _ProfileSwitcherPill extends StatelessWidget {
     final avatarColor =
         brandAvatarColors[(profile?.avatarPreset ?? settings.avatarPreset) %
             brandAvatarColors.length];
+    final face = _BrandSelectorFace(
+      label: label,
+      initials: initials,
+      avatarColor: avatarColor,
+    );
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Material(
-          color: colors.surfaceContainerHighest.withValues(alpha: 0.7),
-          shape: StadiumBorder(
-            side: BorderSide(
-              color: colors.outlineVariant.withValues(alpha: 0.7),
-            ),
-          ),
-          child: InkWell(
-            key: const Key('profile-switcher-pill'),
-            onTap: enabled ? onTap : null,
-            customBorder: const StadiumBorder(),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+    if (kits.isEmpty) {
+      return _BrandSelectorShell(
+        onTap: enabled ? onSwitchProfile : null,
+        child: face,
+      );
+    }
+
+    return PopupMenuButton<_BrandChoice>(
+      key: const Key('profile-switcher-pill'),
+      enabled: enabled,
+      padding: EdgeInsets.zero,
+      offset: const Offset(0, 44),
+      onSelected: (choice) {
+        if (choice.delete && choice.kit != null) {
+          onDelete(choice.kit!);
+        } else if (choice.kit != null) {
+          onSelected(choice.kit!);
+        } else if (choice.identity) {
+          onSwitchProfile();
+        }
+      },
+      itemBuilder: (context) {
+        return [
+          for (final kit in kits)
+            PopupMenuItem<_BrandChoice>(
+              key: Key('brand-kit-${kit.id}'),
+              value: _BrandChoice.select(kit),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: avatarColor,
-                    child: Text(
-                      initials,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 10,
-                      ),
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: kit.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: kit.secondary, width: 2),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 180),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: Text(
-                      name,
+                      kit.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -1469,17 +1721,120 @@ class _ProfileSwitcherPill extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.expand_more,
-                    size: 18,
-                    color: colors.onSurface.withValues(alpha: 0.55),
-                  ),
+                  if (kit.id == selectedId)
+                    Icon(
+                      Icons.check,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                 ],
               ),
             ),
+          if (active != null)
+            PopupMenuItem<_BrandChoice>(
+              key: const Key('brand-kit-delete-menu'),
+              value: _BrandChoice.delete(active),
+              child: Text(
+                'Delete kit',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          PopupMenuItem<_BrandChoice>(
+            key: const Key('brand-switch-identity'),
+            value: const _BrandChoice.identity(),
+            child: Text(
+              'Switch identity',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
           ),
-        ),
+        ];
+      },
+      child: _BrandSelectorShell(onTap: null, child: face),
+    );
+  }
+}
+
+class _BrandSelectorShell extends StatelessWidget {
+  const _BrandSelectorShell({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.7),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.8)),
+      ),
+      child: onTap == null
+          ? child
+          : InkWell(
+              key: const Key('profile-switcher-pill'),
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: child,
+            ),
+    );
+  }
+}
+
+class _BrandSelectorFace extends StatelessWidget {
+  const _BrandSelectorFace({
+    required this.label,
+    required this.initials,
+    required this.avatarColor,
+  });
+
+  final String label;
+  final String initials;
+  final Color avatarColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 12,
+            backgroundColor: avatarColor,
+            child: Text(
+              initials,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 10,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Icon(
+            Icons.arrow_drop_down,
+            size: 22,
+            color: colors.onSurface.withValues(alpha: 0.55),
+          ),
+        ],
       ),
     );
   }
@@ -1702,51 +2057,6 @@ class _CarouselBanner extends StatelessWidget {
             onPressed: onNext,
             icon: const Icon(Icons.chevron_right),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CarouselDots extends StatelessWidget {
-  const _CarouselDots({
-    required this.count,
-    required this.index,
-    required this.onSelected,
-  });
-
-  final int count;
-  final int index;
-  final ValueChanged<int>? onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 2),
-      child: Row(
-        key: const Key('carousel-dots'),
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (var i = 0; i < count; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: GestureDetector(
-                key: Key('carousel-dot-$i'),
-                onTap: onSelected == null ? null : () => onSelected!(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: i == index ? 16 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: i == index
-                        ? colors.primary
-                        : colors.outline.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

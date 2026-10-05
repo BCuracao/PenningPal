@@ -217,7 +217,7 @@ void main() {
       expect(find.byKey(const Key('export-toolbar')), findsNothing);
       expect(find.byKey(const Key('formatting-toolbar')), findsOneWidget);
       expect(find.byKey(const Key('platform-counter-hud')), findsOneWidget);
-      expect(find.byKey(const Key('dismiss-keyboard')), findsOneWidget);
+      expect(find.byKey(const Key('dismiss-keyboard')), findsNothing);
 
       final scroll = tester.widget<SingleChildScrollView>(
         find.byKey(const Key('scratchpad-editor-scroll')),
@@ -228,7 +228,9 @@ void main() {
       );
     });
 
-    testWidgets('dismiss keyboard button clears editor focus', (tester) async {
+    testWidgets('tap outside and a downward swipe dismiss the keyboard', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(400, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -250,9 +252,25 @@ void main() {
       );
       expect(editor.focusNode.hasFocus, isTrue);
 
-      await tester.tap(find.byKey(const Key('dismiss-keyboard')));
+      await tester.tap(find.byKey(const Key('hud-word-count')));
       await tester.pump();
       expect(editor.focusNode.hasFocus, isFalse);
+
+      // Quill keeps a double-tap timer after the first editor tap.
+      await tester.pump(const Duration(milliseconds: 350));
+
+      await tester.tap(find.byKey(const Key('scratchpad-field')));
+      await tester.pump();
+      expect(editor.focusNode.hasFocus, isTrue);
+
+      await tester.timedDrag(
+        find.byKey(const Key('platform-counter-hud')),
+        const Offset(0, 80),
+        const Duration(milliseconds: 200),
+      );
+      await tester.pump();
+      expect(editor.focusNode.hasFocus, isFalse);
+      await tester.pump(const Duration(milliseconds: 350));
     });
 
     testWidgets('empty draft inserts a framework without a confirm dialog', (

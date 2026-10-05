@@ -150,9 +150,6 @@ class FormattingToolbar extends StatelessWidget {
                               heavy: true,
                             ),
                           ),
-                          _DismissKeyboardButton(
-                            onTap: () => FocusScope.of(context).unfocus(),
-                          ),
                         ],
                       );
                     },
@@ -248,45 +245,6 @@ class _FormatButton extends StatelessWidget {
                     child: child,
                   ),
                 ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DismissKeyboardButton extends StatelessWidget {
-  const _DismissKeyboardButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Semantics(
-      key: const Key('dismiss-keyboard'),
-      button: true,
-      label: 'Dismiss keyboard',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(10),
-            child: Ink(
-              width: 40,
-              height: 36,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: colors.surfaceContainerHighest.withValues(alpha: 0.55),
-              ),
-              child: Icon(
-                Icons.keyboard_hide,
-                size: 18,
-                color: colors.onSurface,
               ),
             ),
           ),

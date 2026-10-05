@@ -176,8 +176,15 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
         centerTitle: false,
       ),
       body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        onVerticalDragUpdate: (details) {
+          // Dismiss immediately on a downward swipe, including when the
+          // editor is shorter than the viewport and is not scrolling.
+          if (details.primaryDelta != null && details.primaryDelta! > 6) {
+            FocusManager.instance.primaryFocus?.unfocus();
+          }
+        },
         child: Column(
           children: [
             Expanded(
@@ -207,6 +214,9 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
   }
 
   /// The editor's own scroll view dismisses the keyboard on drag.
+  ///
+  /// A downward swipe anywhere on the body does the same, so a short draft
+  /// that is not scrolling still hides the keyboard.
   ///
   /// Quill's internal scroller does not expose [ScrollView.keyboardDismissBehavior],
   /// so the document grows inside this view (`scrollable: false`) and caret

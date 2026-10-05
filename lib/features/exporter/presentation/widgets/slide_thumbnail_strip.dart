@@ -284,6 +284,7 @@ class SlideRoleSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<SlideRole>(
       key: const Key('slide-role-selector'),
+      expandedInsets: EdgeInsets.zero,
       segments: [
         for (final value in SlideRole.values)
           ButtonSegment<SlideRole>(

@@ -253,7 +253,7 @@ void main() {
       await tester.pump();
       expect(theme.isDarkOverlay, isFalse);
 
-      await tester.tap(find.byKey(const Key('photo-backdrop-remove')));
+      await tester.tap(find.byKey(const Key('photo-backdrop-choose')));
       await tester.pump();
       expect(theme.customBackgroundImagePath, isNull);
       expect(find.byKey(const Key('photo-backdrop-blur')), findsNothing);
@@ -378,6 +378,8 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
+      await tester.tap(find.byKey(const Key('exporter-tab-design')));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('photo-backdrop-card')), findsOneWidget);
       expect(find.text('Photo Backdrop'), findsOneWidget);

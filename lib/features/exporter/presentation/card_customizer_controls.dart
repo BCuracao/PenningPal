@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -51,59 +49,38 @@ class CardCustomizerControls extends StatelessWidget {
       fontSize: 13,
     );
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHighest.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: 0.7),
+    return Column(
+      key: const Key('photo-backdrop-card'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile.adaptive(
+          key: const Key('photo-backdrop-choose'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          dense: true,
+          title: Text('Photo Backdrop', style: labelStyle),
+          secondary: Icon(
+            isProPurchased ? Icons.photo_outlined : Icons.lock_outline,
+            key: isProPurchased ? null : const Key('photo-backdrop-lock'),
+            size: 20,
+            color: colors.onSurface.withValues(alpha: 0.6),
           ),
+          value: _hasPhoto,
+          onChanged: !enabled
+              ? null
+              : (on) {
+                  if (on) {
+                    _requestPick();
+                  } else {
+                    _removePhoto();
+                  }
+                },
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-          child: Column(
-            key: const Key('photo-backdrop-card'),
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.photo_outlined,
-                    size: 18,
-                    color: colors.onSurface.withValues(alpha: 0.7),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Photo Backdrop', style: labelStyle),
-                  ),
-                  if (!isProPurchased)
-                    Icon(
-                      Icons.lock_outline,
-                      key: const Key('photo-backdrop-lock'),
-                      size: 14,
-                      color: colors.onSurface.withValues(alpha: 0.45),
-                    ),
-                  const SizedBox(width: 8),
-                  _PickButton(
-                    hasPhoto: _hasPhoto,
-                    path: theme.customBackgroundImagePath,
-                    onPressed: _requestPick,
-                  ),
-                  if (_hasPhoto)
-                    IconButton(
-                      key: const Key('photo-backdrop-remove'),
-                      tooltip: 'Remove photo',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: enabled ? _removePhoto : null,
-                      icon: const Icon(Icons.close, size: 18),
-                    ),
-                ],
-              ),
-              if (_hasPhoto) ...[
-                const SizedBox(height: 4),
+        if (_hasPhoto)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(
+              children: [
                 _LabeledSlider(
                   key: const Key('photo-backdrop-blur'),
                   label: 'Blur',
@@ -177,58 +154,9 @@ class CardCustomizerControls extends StatelessWidget {
                   ),
                 ),
               ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PickButton extends StatelessWidget {
-  const _PickButton({
-    required this.hasPhoto,
-    required this.path,
-    required this.onPressed,
-  });
-
-  final bool hasPhoto;
-  final String? path;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    if (hasPhoto && path != null) {
-      return InkWell(
-        key: const Key('photo-backdrop-choose'),
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            width: 36,
-            height: 36,
-            child: Image.file(
-              File(path!),
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const ColoredBox(
-                color: Color(0xFF1E293B),
-                child: Icon(Icons.photo, size: 18, color: Colors.white70),
-              ),
             ),
           ),
-        ),
-      );
-    }
-
-    return TextButton.icon(
-      key: const Key('photo-backdrop-choose'),
-      onPressed: onPressed,
-      icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-      label: Text(
-        '+ Choose Photo',
-        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
-      ),
+      ],
     );
   }
 }

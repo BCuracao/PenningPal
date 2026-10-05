@@ -373,3 +373,10 @@
 - `flutter analyze lib test` clean. Phone-sized widget tests cover keyboard chrome, the dismiss button, drag-to-dismiss, and both card aspect ratios.
 - Modified: `lib/features/scratchpad/presentation/{scratchpad_screen,formatting_toolbar}.dart`, `lib/features/scratchpad/presentation/widgets/{platform_counter_hud,linkedin_fold_indicator}.dart`, `lib/features/exporter/presentation/card_exporter_screen.dart`, `test/features/{scratchpad_powerups_test,card_rasterizer_test,card_clipboard_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.
+
+### 2026-10-05 — UI polish: tabbed card controls and swipe-down keyboard dismiss
+- [x] UI Polish: Tabbed card controls (Slides / Design) and smooth down-swipe keyboard dismissal.
+- Card exporter controls sit under a `Slides | Design` segmented switch. Slides centers Cover | Body | CTA and keeps the thumbnail strip under `SLIDE SEQUENCE & ROLES`, without the pagination dots. Design puts the brand selector and `+ Save Kit` on one row, then `TYPOGRAPHY`, `COLOR THEME`, and switch tiles for Photo Backdrop and Remove Watermark. Export actions stay docked under the scroll view.
+- Scratchpad body dismisses the keyboard on a tap outside the editor and on a downward swipe, including when the draft is too short to scroll. The formatting toolbar no longer has a keyboard-hide button.
+- Modified: `lib/features/exporter/presentation/{card_exporter_screen,card_customizer_controls}.dart`, `lib/features/exporter/presentation/widgets/slide_thumbnail_strip.dart`, `lib/features/scratchpad/presentation/{scratchpad_screen,formatting_toolbar}.dart`, exporter and scratchpad widget tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.

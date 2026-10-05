@@ -334,6 +334,8 @@ void main() {
 
     testWidgets('tapping a Pro font pairing opens the paywall', (tester) async {
       await pumpExporter(tester, kits: BrandKitStorage());
+      await tester.tap(find.byKey(const Key('exporter-tab-design')));
+      await tester.pumpAndSettle();
 
       final chip = find.byKey(const Key('font-pairing-editorial_authority'));
       await tester.ensureVisible(chip);
@@ -361,6 +363,8 @@ void main() {
         isProPurchased: true,
       );
       await pumpExporter(tester, kits: kits);
+      await tester.tap(find.byKey(const Key('exporter-tab-design')));
+      await tester.pumpAndSettle();
 
       final save = find.byKey(const Key('brand-kit-save'));
       await tester.ensureVisible(save);

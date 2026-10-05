@@ -185,9 +185,15 @@ void main() {
       await tester.pump();
     }
 
+    Future<void> openDesign(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('exporter-tab-design')));
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('unentitled theme taps open the paywall and keep Minimal',
         (tester) async {
       await pumpExporter(tester, paywall: FakePaywallService());
+      await openDesign(tester);
 
       expect(find.byKey(const Key('theme-lock-terminal')), findsOneWidget);
       expect(find.byKey(const Key('theme-lock-midnight')), findsOneWidget);
@@ -224,6 +230,7 @@ void main() {
 
     testWidgets('unentitled watermark toggle opens the paywall', (tester) async {
       await pumpExporter(tester, paywall: FakePaywallService());
+      await openDesign(tester);
 
       await tester.tap(find.byKey(const Key('remove-watermark-toggle')));
       await tester.pumpAndSettle();
@@ -244,6 +251,7 @@ void main() {
         paywall: FakePaywallService(),
         text: 'Slide one\n\n---\n\nSlide two',
       );
+      await openDesign(tester);
 
       await tester.ensureVisible(find.byKey(const Key('photo-backdrop-choose')));
       await tester.tap(find.byKey(const Key('photo-backdrop-choose')));
@@ -276,6 +284,7 @@ void main() {
         tester,
         paywall: FakePaywallService(hasProAccess: true),
       );
+      await openDesign(tester);
 
       expect(find.byKey(const Key('theme-lock-terminal')), findsNothing);
 
