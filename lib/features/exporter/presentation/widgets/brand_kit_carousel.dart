@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -224,9 +226,9 @@ class _BrandKitSaveSheetState extends State<BrandKitSaveSheet> {
       setState(() => _logoPath = path);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not add that logo')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not add that logo')));
     } finally {
       if (mounted) setState(() => _picking = false);
     }
@@ -285,26 +287,96 @@ class _BrandKitSaveSheetState extends State<BrandKitSaveSheet> {
               hintText: 'Personal Brand',
             ),
           ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            key: const Key('brand-kit-logo'),
-            onPressed: _picking ? null : _pickLogo,
-            icon: _picking
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.image_outlined, size: 18),
-            label: Text(_logoPath == null ? 'Add logo' : 'Logo added'),
-          ),
           const SizedBox(height: 16),
+          _BrandLogoSlot(path: _logoPath, picking: _picking, onTap: _pickLogo),
+          const SizedBox(height: 20),
           FilledButton(
             key: const Key('brand-kit-confirm'),
             onPressed: _save,
             child: const Text('Save kit'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BrandLogoSlot extends StatelessWidget {
+  const _BrandLogoSlot({
+    required this.path,
+    required this.picking,
+    required this.onTap,
+  });
+
+  final String? path;
+  final bool picking;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final hasLogo = path != null && path!.isNotEmpty;
+    final label = hasLogo ? 'Logo added' : 'Add logo';
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        key: const Key('brand-kit-logo'),
+        onTap: picking ? null : onTap,
+        customBorder: const CircleBorder(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.surfaceContainerHighest,
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: ClipOval(
+                      child: hasLogo
+                          ? Image.file(
+                              File(path!),
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Icon(
+                                Icons.add_a_photo_outlined,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            )
+                          : Icon(
+                              Icons.add_a_photo_outlined,
+                              color: colors.onSurfaceVariant,
+                            ),
+                    ),
+                  ),
+                  if (picking)
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: colors.onSurface,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

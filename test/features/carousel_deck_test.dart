@@ -278,6 +278,8 @@ void main() {
       expect(find.byKey(const Key('carousel-slide-banner')), findsOneWidget);
       expect(find.byKey(const Key('carousel-dots')), findsNothing);
       expect(find.text('SLIDE SEQUENCE & ROLES'), findsOneWidget);
+      expect(find.byKey(const Key('slide-thumbnail-strip')), findsNothing);
+      expect(find.text('Add Slide'), findsNothing);
       expect(find.text('Slide 1 of 3'), findsOneWidget);
       expect(find.text('Share PDF'), findsOneWidget);
       expect(find.text('Save All (3 Slides)'), findsOneWidget);

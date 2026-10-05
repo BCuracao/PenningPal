@@ -140,7 +140,7 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
             const _BenefitRow(
               icon: Icons.palette_outlined,
               label:
-                  'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes',
+                  'Unlock Aurora, Terminal, Neo-Brutal & Custom Hex themes',
             ),
             const _BenefitRow(
               icon: Icons.photo_outlined,

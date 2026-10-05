@@ -23,7 +23,7 @@ The free tier includes unlimited text transformation and clipboard export, plus 
 
 **PenningPal Pro** is a **one-time $4.99 USD** (or local-currency equivalent set by Apple or Google) **non-consumable lifetime unlock**. It is not a subscription. It is not consumed by use.
 
-Pro unlocks additional card themes (including Midnight and Terminal) and removes the export watermark. Availability, price, and tax are determined by the App Store or Google Play at checkout.
+Pro unlocks additional card themes (including Terminal, Aurora, and Neo-Brutalist) and custom colors, and removes the export watermark. Availability, price, and tax are determined by the App Store or Google Play at checkout.
 
 Purchases are processed by Apple or Google. Restore Purchases re-applies the entitlement to devices signed into the same store account. Refunds are handled exclusively by Apple or Google under their store policies.
 

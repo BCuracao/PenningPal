@@ -221,9 +221,13 @@ void main() {
       expect(find.text(ExportMessages.substack), findsOneWidget);
     });
 
-    testWidgets('Card opens the exporter with the current draft', (tester) async {
+    testWidgets('Preview opens the exporter with the current draft', (
+      tester,
+    ) async {
       await pumpScratchpad(tester, draft: _draft);
 
+      expect(find.text('Preview'), findsOneWidget);
+      expect(find.text('Card'), findsNothing);
       await tester.tap(find.byKey(const Key('export-card')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));

@@ -7,10 +7,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:penningpal/features/exporter/models/brand_kit.dart';
 import 'package:penningpal/features/exporter/models/font_pairing.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:penningpal/features/exporter/presentation/card_exporter_screen.dart';
+import 'package:penningpal/features/exporter/presentation/widgets/brand_kit_carousel.dart';
 import 'package:penningpal/features/exporter/presentation/widgets/cta_qr_code_widget.dart';
 import 'package:penningpal/features/exporter/state/brand_kit_notifier.dart';
 import 'package:penningpal/features/exporter/storage/brand_kit_storage.dart';
+import 'package:penningpal/features/exporter/storage/brand_logo_store.dart';
 import 'package:penningpal/features/exporter/templates/card_theme_config.dart';
 import 'package:penningpal/features/paywall/paywall_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -117,6 +120,119 @@ void main() {
       expect(restored.logoPath, isNull);
       expect(restored.fontPairingId, 'modern_tech');
     });
+
+    test(
+      'gallery pick is copied on device and stored on BrandKit.logoPath',
+      () async {
+        final temp = await Directory.systemTemp.createTemp('brand_logo_sheet_');
+        addTearDown(() async {
+          if (temp.existsSync()) temp.deleteSync(recursive: true);
+        });
+        final source = File('${temp.path}/source.png');
+        await source.writeAsBytes(const [
+          0x89,
+          0x50,
+          0x4E,
+          0x47,
+          0x0D,
+          0x0A,
+          0x1A,
+          0x0A,
+          0x00,
+          0x00,
+          0x00,
+          0x0D,
+          0x49,
+          0x48,
+          0x44,
+          0x52,
+          0x00,
+          0x00,
+          0x00,
+          0x01,
+          0x00,
+          0x00,
+          0x00,
+          0x01,
+          0x08,
+          0x02,
+          0x00,
+          0x00,
+          0x00,
+          0x90,
+          0x77,
+          0x53,
+          0xDE,
+          0x00,
+          0x00,
+          0x00,
+          0x0C,
+          0x49,
+          0x44,
+          0x41,
+          0x54,
+          0x08,
+          0xD7,
+          0x63,
+          0xF8,
+          0xCF,
+          0xC0,
+          0x00,
+          0x00,
+          0x00,
+          0x03,
+          0x00,
+          0x01,
+          0x00,
+          0x05,
+          0xFE,
+          0xD4,
+          0xEF,
+          0x00,
+          0x00,
+          0x00,
+          0x00,
+          0x49,
+          0x45,
+          0x4E,
+          0x44,
+          0xAE,
+          0x42,
+          0x60,
+          0x82,
+        ]);
+        final store = BrandLogoStore(
+          supportDirectory: () async => temp,
+          pickImage: () async => XFile(source.path),
+        );
+
+        final path = await store.pickFromGallery();
+        expect(path, isNotNull);
+        expect(BrandLogoStore.isManagedPath(path!), isTrue);
+        expect(File(path).existsSync(), isTrue);
+
+        final kit = BrandKit(
+          id: 'kit_logo',
+          name: 'Personal Brand',
+          primaryColor: '#0F172A',
+          secondaryColor: '#F8FAFC',
+          fontPairingId: 'modern_tech',
+          logoPath: path,
+        );
+        expect(kit.logoPath, path);
+        expect(BrandKit.fromMap(kit.toMap()).logoPath, path);
+      },
+    );
+
+    testWidgets('brand kit sheet shows a logo upload slot', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: BrandKitSaveSheet())),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('brand-kit-logo')), findsOneWidget);
+      expect(find.text('Add logo'), findsOneWidget);
+    });
   });
 
   group('BrandKitStorage limits', () {
@@ -132,10 +248,7 @@ void main() {
 
     test('free users can save one kit and are blocked on the second', () async {
       final storage = BrandKitStorage();
-      expect(
-        storage.canSave(kit('a'), isProPurchased: false),
-        isTrue,
-      );
+      expect(storage.canSave(kit('a'), isProPurchased: false), isTrue);
 
       await storage.saveKit(kit('a', name: 'Personal'), isProPurchased: false);
       expect(storage.getAllKits(), hasLength(1));
@@ -169,7 +282,9 @@ void main() {
     });
 
     test('Hive box round-trips the kit list', () async {
-      final dir = await Directory.systemTemp.createTemp('penningpal_brand_kits_');
+      final dir = await Directory.systemTemp.createTemp(
+        'penningpal_brand_kits_',
+      );
       Hive.init(dir.path);
       final boxName = 'brand_kits_box_${dir.hashCode}';
       final box = await Hive.openBox<dynamic>(boxName);
@@ -195,24 +310,16 @@ void main() {
     test('notifier refuses a second free kit', () async {
       final storage = BrandKitStorage();
       final container = ProviderContainer(
-        overrides: [
-          brandKitStorageProvider.overrideWithValue(storage),
-        ],
+        overrides: [brandKitStorageProvider.overrideWithValue(storage)],
       );
       addTearDown(container.dispose);
 
       final notifier = container.read(brandKitsProvider.notifier);
-      final first = await notifier.saveKit(
-        kit('one'),
-        isProPurchased: false,
-      );
+      final first = await notifier.saveKit(kit('one'), isProPurchased: false);
       expect(first, isTrue);
       expect(container.read(brandKitsProvider), hasLength(1));
 
-      final second = await notifier.saveKit(
-        kit('two'),
-        isProPurchased: false,
-      );
+      final second = await notifier.saveKit(kit('two'), isProPurchased: false);
       if (canAccessProFeature(isProPurchased: false)) {
         expect(second, isTrue);
       } else {
@@ -396,10 +503,7 @@ void main() {
 
       expect(find.byKey(const Key('cta-qr-fallback')), findsOneWidget);
 
-      await tester.enterText(
-        find.byKey(const Key('cta-qr-url')),
-        'not a url',
-      );
+      await tester.enterText(find.byKey(const Key('cta-qr-url')), 'not a url');
       await tester.pump();
       expect(find.byKey(const Key('cta-qr-invalid')), findsOneWidget);
       expect(find.byType(QrImageView), findsNothing);

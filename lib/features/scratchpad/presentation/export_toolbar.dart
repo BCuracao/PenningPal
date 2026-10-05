@@ -77,8 +77,8 @@ class ExportToolbar extends ConsumerWidget {
                   ),
                   _ExportAction(
                     buttonKey: const Key('export-card'),
-                    icon: Icons.view_carousel_outlined,
-                    label: 'Card',
+                    icon: Icons.visibility_outlined,
+                    label: 'Preview',
                     enabled: true,
                     onPressed: () => _openCardExporter(context, ref),
                   ),

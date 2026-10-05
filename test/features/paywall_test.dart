@@ -40,9 +40,7 @@ void main() {
     test('starts free and becomes pro after a successful purchase', () async {
       final service = FakePaywallService();
       final container = ProviderContainer(
-        overrides: [
-          paywallServiceProvider.overrideWithValue(service),
-        ],
+        overrides: [paywallServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
 
@@ -58,7 +56,10 @@ void main() {
 
       expect(unlocked, isTrue);
       expect(service.purchaseCount, 1);
-      expect(service.lastPurchasedPackage?.storeProduct.identifier, 'pro_lifetime');
+      expect(
+        service.lastPurchasedPackage?.storeProduct.identifier,
+        'pro_lifetime',
+      );
       expect(container.read(paywallProvider).value, isTrue);
       expect(container.read(isProPurchasedProvider), isTrue);
     });
@@ -66,9 +67,7 @@ void main() {
     test('cancelled purchase leaves the user on the free tier', () async {
       final service = FakePaywallService()..purchaseShouldSucceed = false;
       final container = ProviderContainer(
-        overrides: [
-          paywallServiceProvider.overrideWithValue(service),
-        ],
+        overrides: [paywallServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
 
@@ -84,16 +83,15 @@ void main() {
     test('restorePurchases refreshes entitlement when Pro is found', () async {
       final service = FakePaywallService()..restoreGrantsPro = true;
       final container = ProviderContainer(
-        overrides: [
-          paywallServiceProvider.overrideWithValue(service),
-        ],
+        overrides: [paywallServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
 
       expect(await container.read(paywallProvider.future), isFalse);
 
-      final restored =
-          await container.read(paywallProvider.notifier).restorePurchases();
+      final restored = await container
+          .read(paywallProvider.notifier)
+          .restorePurchases();
 
       expect(restored, isTrue);
       expect(service.restoreCount, 1);
@@ -133,28 +131,22 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('unentitled users keep the watermark even if the theme strips it',
-        (tester) async {
-      await pumpCanvas(
-        tester,
-        isProPurchased: false,
-        showWatermark: false,
-      );
+    testWidgets(
+      'unentitled users keep the watermark even if the theme strips it',
+      (tester) async {
+        await pumpCanvas(tester, isProPurchased: false, showWatermark: false);
 
-      if (canAccessProFeature(isProPurchased: false)) {
-        expect(find.byKey(const Key('card-watermark')), findsNothing);
-      } else {
-        expect(find.byKey(const Key('card-watermark')), findsOneWidget);
-        expect(find.text(CardLayout.watermarkLabel), findsOneWidget);
-      }
-    });
+        if (canAccessProFeature(isProPurchased: false)) {
+          expect(find.byKey(const Key('card-watermark')), findsNothing);
+        } else {
+          expect(find.byKey(const Key('card-watermark')), findsOneWidget);
+          expect(find.text(CardLayout.watermarkLabel), findsOneWidget);
+        }
+      },
+    );
 
     testWidgets('pro users may hide the watermark', (tester) async {
-      await pumpCanvas(
-        tester,
-        isProPurchased: true,
-        showWatermark: false,
-      );
+      await pumpCanvas(tester, isProPurchased: true, showWatermark: false);
 
       expect(find.byKey(const Key('card-watermark')), findsNothing);
     });
@@ -173,12 +165,8 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            paywallServiceProvider.overrideWithValue(paywall),
-          ],
-          child: MaterialApp(
-            home: CardExporterScreen(text: text),
-          ),
+          overrides: [paywallServiceProvider.overrideWithValue(paywall)],
+          child: MaterialApp(home: CardExporterScreen(text: text)),
         ),
       );
       await tester.pump();
@@ -190,21 +178,27 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('unentitled theme taps open the paywall and keep Minimal',
-        (tester) async {
+    testWidgets('unentitled theme taps open the paywall and keep Minimal', (
+      tester,
+    ) async {
       await pumpExporter(tester, paywall: FakePaywallService());
       await openDesign(tester);
 
       expect(find.byKey(const Key('theme-lock-terminal')), findsOneWidget);
-      expect(find.byKey(const Key('theme-lock-midnight')), findsOneWidget);
+      expect(find.byKey(const Key('theme-lock-midnight')), findsNothing);
+      expect(find.byKey(const Key('theme-lock-editorial')), findsNothing);
       expect(find.byKey(const Key('theme-lock-minimal')), findsNothing);
       final themeScrollable = find.descendant(
         of: find.byKey(const Key('card-template-carousel')),
         matching: find.byType(Scrollable),
       );
-      for (final id in ['aurora', 'editorial', 'neo_brutal', 'custom']) {
+      for (final id in ['aurora', 'neo_brutal', 'custom']) {
         final lock = find.byKey(Key('theme-lock-$id'));
-        await tester.dragUntilVisible(lock, themeScrollable, const Offset(-160, 0));
+        await tester.dragUntilVisible(
+          lock,
+          themeScrollable,
+          const Offset(-160, 0),
+        );
         expect(lock, findsOneWidget);
       }
       expect(find.byKey(const Key('card-watermark')), findsOneWidget);
@@ -218,7 +212,10 @@ void main() {
       await tester.pumpAndSettle();
 
       if (kDemoModeBypassPaywall) {
-        expect(find.byKey(const Key('terminal-traffic-lights')), findsOneWidget);
+        expect(
+          find.byKey(const Key('terminal-traffic-lights')),
+          findsOneWidget,
+        );
         expect(find.text('Unlock PenningPal Pro'), findsNothing);
       } else {
         expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
@@ -228,7 +225,9 @@ void main() {
       }
     });
 
-    testWidgets('unentitled watermark toggle opens the paywall', (tester) async {
+    testWidgets('unentitled watermark toggle opens the paywall', (
+      tester,
+    ) async {
       await pumpExporter(tester, paywall: FakePaywallService());
       await openDesign(tester);
 
@@ -244,8 +243,9 @@ void main() {
       }
     });
 
-    testWidgets('unentitled photo pick and LinkedIn PDF open the paywall',
-        (tester) async {
+    testWidgets('unentitled photo pick and LinkedIn PDF open the paywall', (
+      tester,
+    ) async {
       await pumpExporter(
         tester,
         paywall: FakePaywallService(),
@@ -253,7 +253,9 @@ void main() {
       );
       await openDesign(tester);
 
-      await tester.ensureVisible(find.byKey(const Key('photo-backdrop-choose')));
+      await tester.ensureVisible(
+        find.byKey(const Key('photo-backdrop-choose')),
+      );
       await tester.tap(find.byKey(const Key('photo-backdrop-choose')));
       await tester.pumpAndSettle();
 
@@ -263,9 +265,8 @@ void main() {
         findsWidgets,
       );
 
-      Navigator.of(
-        tester.element(find.byKey(const Key('paywall-headline'))),
-      ).pop();
+      Navigator.of(tester.element(find.byKey(const Key('paywall-headline'))))
+          .pop();
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.byKey(const Key('export-linkedin-pdf')));
@@ -279,6 +280,35 @@ void main() {
       );
     });
 
+    testWidgets(
+      'free users can select Midnight and Editorial without a paywall',
+      (tester) async {
+        await pumpExporter(tester, paywall: FakePaywallService());
+        await openDesign(tester);
+
+        await tester.tap(find.byKey(const Key('card-template-midnight')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Unlock PenningPal Pro'), findsNothing);
+        expect(
+          tester.widget<CardCanvas>(find.byType(CardCanvas)).theme.id,
+          'midnight',
+        );
+
+        final editorial = find.byKey(const Key('card-template-editorial'));
+        await tester.ensureVisible(editorial);
+        await tester.pumpAndSettle();
+        await tester.tap(editorial);
+        await tester.pump();
+
+        expect(find.text('Unlock PenningPal Pro'), findsNothing);
+        expect(
+          tester.widget<CardCanvas>(find.byType(CardCanvas)).theme.id,
+          'editorial',
+        );
+      },
+    );
+
     testWidgets('pro users can select Terminal without a lock', (tester) async {
       await pumpExporter(
         tester,
@@ -288,7 +318,9 @@ void main() {
 
       expect(find.byKey(const Key('theme-lock-terminal')), findsNothing);
 
-      await tester.ensureVisible(find.byKey(const Key('card-template-terminal')));
+      await tester.ensureVisible(
+        find.byKey(const Key('card-template-terminal')),
+      );
       await tester.tap(find.byKey(const Key('card-template-terminal')));
       await tester.pump();
 
@@ -328,10 +360,7 @@ void main() {
       );
       expect(selectLifetimePackage(byProduct)?.identifier, 'custom');
       expect(selectLifetimePackage(null), isNull);
-      expect(
-        unlockLifetimeButtonLabel(null),
-        'Unlock Lifetime Pro — \$4.99',
-      );
+      expect(unlockLifetimeButtonLabel(null), 'Unlock Lifetime Pro — \$4.99');
       expect(
         unlockLifetimeButtonLabel(sampleLifetimePackage(priceString: '€4.99')),
         'Unlock Lifetime Pro — €4.99',
@@ -340,14 +369,13 @@ void main() {
   });
 
   group('PaywallBottomSheet', () {
-    testWidgets('purchase success dismisses the sheet and grants Pro',
-        (tester) async {
+    testWidgets('purchase success dismisses the sheet and grants Pro', (
+      tester,
+    ) async {
       final service = FakePaywallService();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            paywallServiceProvider.overrideWithValue(service),
-          ],
+          overrides: [paywallServiceProvider.overrideWithValue(service)],
           child: MaterialApp(
             home: Builder(
               builder: (context) {
@@ -370,7 +398,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Unlock Lifetime Pro — ${RevenueCatConfig.lifetimePriceLabel}'),
+        find.text(
+          'Unlock Lifetime Pro — ${RevenueCatConfig.lifetimePriceLabel}',
+        ),
         findsOneWidget,
       );
       expect(
@@ -394,14 +424,14 @@ void main() {
       expect(service.purchaseCount, 1);
     });
 
-    testWidgets('shows a spinner while the purchase is pending', (tester) async {
+    testWidgets('shows a spinner while the purchase is pending', (
+      tester,
+    ) async {
       final service = FakePaywallService()
         ..purchaseDelay = const Duration(milliseconds: 80);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            paywallServiceProvider.overrideWithValue(service),
-          ],
+          overrides: [paywallServiceProvider.overrideWithValue(service)],
           child: MaterialApp(
             home: Builder(
               builder: (context) {
@@ -432,14 +462,13 @@ void main() {
       expect(find.text('Unlock PenningPal Pro'), findsNothing);
     });
 
-    testWidgets('shows the localized store price on the purchase button',
-        (tester) async {
+    testWidgets('shows the localized store price on the purchase button', (
+      tester,
+    ) async {
       final service = FakePaywallService(priceString: '€4.99');
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            paywallServiceProvider.overrideWithValue(service),
-          ],
+          overrides: [paywallServiceProvider.overrideWithValue(service)],
           child: MaterialApp(
             home: Builder(
               builder: (context) {
@@ -466,14 +495,13 @@ void main() {
       expect(service.lastPurchasedPackage?.storeProduct.priceString, '€4.99');
     });
 
-    testWidgets('offline offerings fall back to \$4.99 without purchasing',
-        (tester) async {
+    testWidgets('offline offerings fall back to \$4.99 without purchasing', (
+      tester,
+    ) async {
       final service = FakePaywallService()..offeringsAvailable = false;
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            paywallServiceProvider.overrideWithValue(service),
-          ],
+          overrides: [paywallServiceProvider.overrideWithValue(service)],
           child: MaterialApp(
             home: Builder(
               builder: (context) {
@@ -503,14 +531,13 @@ void main() {
       expect(find.text('Unlock PenningPal Pro'), findsOneWidget);
     });
 
-    testWidgets('a cancelled purchase stays on the sheet without an error',
-        (tester) async {
+    testWidgets('a cancelled purchase stays on the sheet without an error', (
+      tester,
+    ) async {
       final service = FakePaywallService()..purchaseShouldSucceed = false;
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            paywallServiceProvider.overrideWithValue(service),
-          ],
+          overrides: [paywallServiceProvider.overrideWithValue(service)],
           child: MaterialApp(
             home: Builder(
               builder: (context) {

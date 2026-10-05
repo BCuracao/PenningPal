@@ -82,7 +82,8 @@ class CardThemeConfig {
   /// forces a watermark when [isProPurchased] is false.
   final bool showWatermark;
 
-  /// Midnight, Terminal, Aurora, Editorial, Neo-Brutal, and Custom require Pro.
+  /// Terminal, Aurora, Neo-Brutal, and Custom require Pro.
+  /// Minimal, Midnight, and Editorial Warm stay on the free tier.
   final bool isPremium;
 
   final CardTemplateVariant variant;
@@ -285,7 +286,7 @@ class CardThemeConfig {
 
 enum CardTemplateVariant { plain, terminal }
 
-/// Built-in visual presets. Advanced palettes and Custom Brand are Pro.
+/// Built-in visual presets. Terminal, Aurora, Neo-Brutal, and Custom Brand are Pro.
 abstract final class CardPresets {
   static const String customId = 'custom';
 
@@ -312,7 +313,6 @@ abstract final class CardPresets {
     textColor: Color(0xFFF8FAFC),
     accentColor: Color(0xFF38BDF8),
     fontFamily: CardThemeConfig.fontInter,
-    isPremium: true,
   );
 
   /// Dev Terminal — VS Code-like chrome with traffic-light controls.
@@ -368,7 +368,6 @@ abstract final class CardPresets {
     textColor: Color(0xFF1C1917),
     accentColor: Color(0xFFC2410C),
     fontFamily: CardThemeConfig.fontInter,
-    isPremium: true,
   );
 
   /// Neo-Brutalist — canary field, pitch-black type, 4px solid border.

@@ -12,10 +12,8 @@ import '../../../core/persistence/profile_storage.dart';
 import '../../../core/persistence/settings_storage.dart';
 import '../../paywall/paywall_bottom_sheet.dart';
 import '../../paywall/paywall_provider.dart';
-import '../../scratchpad/state/scratchpad_notifier.dart';
 import '../models/brand_kit.dart';
 import '../models/carousel_deck.dart';
-import '../models/carousel_markdown.dart';
 import '../models/font_pairing.dart';
 import '../models/slide_role.dart';
 import '../render/card_export_service.dart';
@@ -34,7 +32,7 @@ import 'card_inspect_modal.dart';
 import 'widgets/brand_kit_carousel.dart';
 import 'widgets/cta_qr_controls.dart';
 import 'widgets/font_pairing_carousel.dart';
-import 'widgets/slide_thumbnail_strip.dart';
+import 'widgets/slide_role_selector.dart';
 
 /// Live preview + rasterize flow for visual quote / carousel cards.
 class CardExporterScreen extends ConsumerStatefulWidget {
@@ -50,8 +48,7 @@ class CardExporterScreen extends ConsumerStatefulWidget {
     this.shareExportService = const ShareExportService(),
   });
 
-  /// Scratchpad draft shown on the canvas. Structural slide edits write this
-  /// buffer back to the active draft.
+  /// Scratchpad draft shown on the canvas. New slides are added in the editor.
   final String text;
 
   /// Optional display name shown in the card header.
@@ -97,6 +94,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   bool _showQrCode = false;
   late final TextEditingController _qrController;
   _ExporterPanel _panel = _ExporterPanel.slides;
+  bool _isCanvasCollapsed = false;
 
   /// Most recent PNG capture, retained for tests.
   @visibleForTesting
@@ -193,6 +191,11 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     );
 
     final story = _aspect == CardAspectRatio.story;
+    final storyCollapsed = story && _isCanvasCollapsed;
+    final deck = _deck;
+    final safeIndex = deck.totalSlides <= 1
+        ? 0
+        : _slideIndex.clamp(0, deck.totalSlides - 1);
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -205,15 +208,56 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
               children: [
                 _buildHeader(titleStyle),
                 Expanded(
-                  flex: story ? 68 : 42,
-                  child: _buildHero(canAccessPro),
-                ),
-                Expanded(
-                  flex: story ? 32 : 58,
-                  child: _buildControlDeck(
-                    isProPurchased: isProPurchased,
-                    canAccessPro: canAccessPro,
-                    settings: settings,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final heroFraction = story ? 0.68 : 0.42;
+                      final expandedHeight =
+                          constraints.maxHeight * heroFraction;
+                      final collapsedHeight = deck.isCarousel ? 96.0 : 72.0;
+                      return Column(
+                        children: [
+                          AnimatedContainer(
+                            key: const Key('card-preview-slot'),
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutCubic,
+                            height: storyCollapsed
+                                ? collapsedHeight
+                                : expandedHeight,
+                            decoration: const BoxDecoration(),
+                            clipBehavior: Clip.hardEdge,
+                            child: storyCollapsed
+                                ? _CollapsedStoryBanner(
+                                    label:
+                                        '${deck.slideOfLabel(safeIndex)} • Story Mode (Preview Hidden)',
+                                    showArrows: deck.isCarousel,
+                                    onPrevious: _isBusy || safeIndex <= 0
+                                        ? null
+                                        : () => unawaited(
+                                            _goToPage(safeIndex - 1),
+                                          ),
+                                    onNext:
+                                        _isBusy ||
+                                            safeIndex >= deck.totalSlides - 1
+                                        ? null
+                                        : () => unawaited(
+                                            _goToPage(safeIndex + 1),
+                                          ),
+                                    onExpand: () => _setCanvasCollapsed(false),
+                                    onVerticalDragUpdate:
+                                        _onCollapsedBannerDrag,
+                                  )
+                                : _buildHero(canAccessPro),
+                          ),
+                          Expanded(
+                            child: _buildControlDeck(
+                              isProPurchased: isProPurchased,
+                              canAccessPro: canAccessPro,
+                              settings: settings,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -257,6 +301,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
                   : (next) => setState(() {
                       _aspect = next;
                       _activeKitId = null;
+                      if (next != CardAspectRatio.story) {
+                        _isCanvasCollapsed = false;
+                      }
                     }),
             ),
           ),
@@ -279,9 +326,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       children: [
         _PanelSwitch(
           selected: _panel,
-          onChanged: _isBusy
-              ? null
-              : (next) => setState(() => _panel = next),
+          onChanged: _isBusy ? null : (next) => setState(() => _panel = next),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -325,16 +370,6 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
             role: _roleAt(safeIndex),
             onChanged: _isBusy ? null : _setRole,
           ),
-        ),
-        SlideThumbnailStrip(
-          slides: deck.slides.isEmpty ? const [''] : deck.slides,
-          activeIndex: safeIndex,
-          enabled: !_isBusy,
-          onSelect: (index) => unawaited(_goToPage(index)),
-          onReorder: _reorderSlides,
-          onDuplicate: _duplicateSlide,
-          onDelete: _deleteSlide,
-          onAdd: _addSlide,
         ),
         if (_roleAt(safeIndex) == SlideRole.cta)
           CtaQrControls(
@@ -408,7 +443,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       unawaited(
         _promptUpgrade(
           highlight: preset.isCustom
-              ? 'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes'
+              ? 'Unlock Aurora, Terminal, Neo-Brutal & Custom Hex themes'
               : null,
         ),
       );
@@ -524,6 +559,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     setState(() {
       _activeKitId = kit.id;
       _aspect = kit.aspectRatio;
+      if (kit.aspectRatio != CardAspectRatio.story) {
+        _isCanvasCollapsed = false;
+      }
       _theme = BrandPalette.apply(_theme, kit);
       _logoPath = kit.logoPath;
       if (!fontLocked && pairing != null) {
@@ -732,111 +770,73 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       );
     }
 
-    return ColoredBox(
-      color: Theme.of(context).colorScheme.surfaceContainerLowest,
-      child: Column(
-        children: [
-          if (deck.isCarousel)
-            _CarouselBanner(
-              label: deck.slideOfLabel(safeIndex),
-              onPrevious: _isBusy || safeIndex <= 0
-                  ? null
-                  : () => unawaited(_goToPage(safeIndex - 1)),
-              onNext: _isBusy || safeIndex >= deck.totalSlides - 1
-                  ? null
-                  : () => unawaited(_goToPage(safeIndex + 1)),
-            ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: preview,
-            ),
+    final story = _aspect == CardAspectRatio.story;
+
+    return Listener(
+      onPointerMove: story ? _onStoryPointerMove : null,
+      child: GestureDetector(
+        key: const Key('card-preview-gesture'),
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragUpdate: story ? _onStoryPreviewDrag : null,
+        child: ColoredBox(
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
+          child: Column(
+            children: [
+              if (deck.isCarousel)
+                _CarouselBanner(
+                  label: deck.slideOfLabel(safeIndex),
+                  onPrevious: _isBusy || safeIndex <= 0
+                      ? null
+                      : () => unawaited(_goToPage(safeIndex - 1)),
+                  onNext: _isBusy || safeIndex >= deck.totalSlides - 1
+                      ? null
+                      : () => unawaited(_goToPage(safeIndex + 1)),
+                ),
+              if (story)
+                _PreviewCollapseHandle(
+                  collapsed: false,
+                  onPressed: _isBusy ? null : () => _setCanvasCollapsed(true),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  child: preview,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  void _setRole(SlideRole role) {
-    setState(() => _roleOverrides[_slideIndex] = role);
-  }
-
-  void _reorderSlides(int oldIndex, int newIndex) {
-    final length = _deck.totalSlides;
-    final next = CarouselMarkdown.reorder(_markdown, oldIndex, newIndex);
-    final focus = SlideRoles.reorderDestination(oldIndex, newIndex, length);
-    final overrides = SlideRoles.remapAfterReorder(
-      _roleOverrides,
-      oldIndex,
-      newIndex,
-      length,
-    );
-    _commitMarkdown(next, focusIndex: focus, overrides: overrides);
-  }
-
-  void _duplicateSlide(int index) {
-    final length = _deck.totalSlides;
-    final next = CarouselMarkdown.duplicate(_markdown, index);
-    final overrides = SlideRoles.remapAfterDuplicate(
-      _roleOverrides,
-      index,
-      length,
-    );
-    _commitMarkdown(next, focusIndex: index + 1, overrides: overrides);
-  }
-
-  void _deleteSlide(int index) {
-    final length = _deck.totalSlides;
-    if (length <= 1) return;
-    final next = CarouselMarkdown.delete(_markdown, index);
-    final overrides = SlideRoles.remapAfterDelete(
-      _roleOverrides,
-      index,
-      length,
-    );
-    final focus = index >= length - 1 ? index - 1 : index;
-    _commitMarkdown(next, focusIndex: focus, overrides: overrides);
-  }
-
-  void _addSlide() {
-    final next = CarouselMarkdown.addSlide(_markdown);
-    final focus = CarouselDeck.fromMarkdown(next).totalSlides - 1;
-    _commitMarkdown(next, focusIndex: focus);
-  }
-
-  void _commitMarkdown(
-    String markdown, {
-    required int focusIndex,
-    Map<int, SlideRole>? overrides,
-  }) {
-    final deck = CarouselDeck.fromMarkdown(markdown);
-    final last = deck.totalSlides - 1;
-    final focus = last < 0 ? 0 : focusIndex.clamp(0, last);
-    if (_pageController.hasClients) {
-      final currentCount = _deck.totalSlides;
-      if (focus < currentCount && _pageController.page?.round() != focus) {
-        _pageController.jumpToPage(focus);
-      }
-    }
-    setState(() {
-      _markdown = markdown;
-      _slideIndex = focus;
-      if (overrides != null) {
-        _roleOverrides
-          ..clear()
-          ..addAll(overrides);
-      }
-    });
-    _syncActiveDraft(markdown);
+  void _setCanvasCollapsed(bool collapsed) {
+    if (!mounted || _isBusy || _isCanvasCollapsed == collapsed) return;
+    setState(() => _isCanvasCollapsed = collapsed);
+    if (collapsed || !_deck.isCarousel) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_pageController.hasClients) return;
       final page = _pageController.page?.round();
-      if (page != focus) _pageController.jumpToPage(focus);
+      if (page != _slideIndex) _pageController.jumpToPage(_slideIndex);
     });
   }
 
-  void _syncActiveDraft(String markdown) {
-    ref.read(scratchpadProvider.notifier).updateContent(markdown);
+  void _onStoryPreviewDrag(DragUpdateDetails details) {
+    final delta = details.primaryDelta;
+    if (delta != null && delta < -8) _setCanvasCollapsed(true);
+  }
+
+  void _onStoryPointerMove(PointerMoveEvent event) {
+    if (event.delta.dy < -8) _setCanvasCollapsed(true);
+  }
+
+  void _onCollapsedBannerDrag(DragUpdateDetails details) {
+    final delta = details.primaryDelta;
+    if (delta != null && delta > 8) _setCanvasCollapsed(false);
+  }
+
+  void _setRole(SlideRole role) {
+    setState(() => _roleOverrides[_slideIndex] = role);
   }
 
   Future<void> _openInspect(String text) {
@@ -2006,6 +2006,121 @@ class _TemplateChip extends StatelessWidget {
                   color: colors.onSurface.withValues(alpha: 0.45),
                 ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewCollapseHandle extends StatelessWidget {
+  const _PreviewCollapseHandle({
+    required this.collapsed,
+    required this.onPressed,
+  });
+
+  final bool collapsed;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final label = collapsed ? 'Show Preview' : 'Hide Preview';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Material(
+          color: colors.surfaceContainerHighest.withValues(alpha: 0.9),
+          shape: const StadiumBorder(),
+          child: InkWell(
+            key: const Key('preview-collapse-toggle'),
+            onTap: onPressed,
+            customBorder: const StadiumBorder(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    collapsed
+                        ? Icons.keyboard_arrow_down
+                        : Icons.keyboard_arrow_up,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CollapsedStoryBanner extends StatelessWidget {
+  const _CollapsedStoryBanner({
+    required this.label,
+    required this.showArrows,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onExpand,
+    required this.onVerticalDragUpdate,
+  });
+
+  final String label;
+  final bool showArrows;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback onExpand;
+  final GestureDragUpdateCallback onVerticalDragUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Listener(
+      onPointerMove: (event) {
+        if (event.delta.dy > 8) onExpand();
+      },
+      child: GestureDetector(
+        key: const Key('preview-collapsed-banner'),
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragUpdate: onVerticalDragUpdate,
+        child: ColoredBox(
+          color: colors.surfaceContainerLowest,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (showArrows)
+                _CarouselBanner(
+                  label: label,
+                  onPrevious: onPrevious,
+                  onNext: onNext,
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    label,
+                    key: const Key('preview-collapsed-label'),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              _PreviewCollapseHandle(collapsed: true, onPressed: onExpand),
             ],
           ),
         ),

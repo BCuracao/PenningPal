@@ -56,9 +56,9 @@ The original draft is never rewritten. Screen readers and later edits still see 
 | --- | --- | --- |
 | Unlimited markdown drafting and conversion | ✓ | ✓ |
 | Clipboard export for LinkedIn, X, Threads, Substack, Medium | ✓ | ✓ |
-| Basic card export (Minimal theme) | ✓ | ✓ |
+| Basic card export (Minimal, Midnight, Editorial Warm) | ✓ | ✓ |
 | Remove “Made with PenningPal” watermark | | ✓ |
-| Midnight, Terminal, Aurora, Editorial Warm, Neo-Brutalist themes | | ✓ |
+| Terminal, Aurora, Neo-Brutalist themes | | ✓ |
 | Custom hex / brand colors | | ✓ |
 | Custom photo backdrops (blur + contrast scrim) | | ✓ |
 | LinkedIn PDF carousels | | ✓ |

@@ -380,3 +380,13 @@
 - Scratchpad body dismisses the keyboard on a tap outside the editor and on a downward swipe, including when the draft is too short to scroll. The formatting toolbar no longer has a keyboard-hide button.
 - Modified: `lib/features/exporter/presentation/{card_exporter_screen,card_customizer_controls}.dart`, `lib/features/exporter/presentation/widgets/slide_thumbnail_strip.dart`, `lib/features/scratchpad/presentation/{scratchpad_screen,formatting_toolbar}.dart`, exporter and scratchpad widget tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.
+
+### 2026-10-05 — UX polish: Preview tab, collapsible story canvas, free themes
+- [x] UX Polish: Renamed Card to Preview, collapsible 9:16 preview canvas, unlocked 2 free color themes, removed exporter slide strip.
+- The scratchpad export bar labels the card action **Preview** and uses `Icons.visibility_outlined`.
+- In 9:16 Story mode, a swipe up on the hero (`primaryDelta < -8`) or the **Hide Preview** pill collapses the canvas into `Slide N of M • Story Mode (Preview Hidden)`. **Show Preview** or a swipe down restores it with an `AnimatedContainer` height change, so the editing controls take the remaining height.
+- **Midnight** and **Editorial Warm** are free (`isPremium: false`). Terminal, Aurora, Neo-Brutal, and Custom Hex stay locked. Free export of the three open themes does not open the paywall. Watermarks stay on for free accounts.
+- The exporter no longer shows slide thumbnails or **+ Add Slide**. Slides change by swiping the `PageView` or the `Slide X of Y` arrows. New slides still come from the scratchpad **+ Slide** control.
+- The brand-kit sheet has a circular logo slot. A tap calls `ImagePicker.pickImage(source: ImageSource.gallery)` through `BrandLogoStore`, stores the on-device path on `BrandKit.logoPath`, and `CardCanvas` paints it in the header and CTA signature.
+- Modified: `lib/features/scratchpad/presentation/export_toolbar.dart`, `lib/features/exporter/presentation/{card_exporter_screen,widgets/brand_kit_carousel}.dart`, `lib/features/exporter/templates/card_theme_config.dart`, `lib/features/paywall/presentation/paywall_bottom_sheet.dart`, tests, `docs/ARCHITECTURE.md`, `README.md`, `assets/legal/terms_of_service.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:penningpal/features/exporter/presentation/card_canvas.dart';
@@ -40,7 +41,7 @@ void main() {
       expect(theme.textColor, const Color(0xFFF8FAFC));
       expect(theme.fontFamily, CardThemeConfig.fontInter);
       expect(theme.showWatermark, isTrue);
-      expect(theme.isPremium, isTrue);
+      expect(theme.isPremium, isFalse);
       expect(theme.backgroundGradient, isA<LinearGradient>());
     });
 
@@ -73,7 +74,7 @@ void main() {
       expect(theme.backgroundColor, const Color(0xFFF9F6EE));
       expect(theme.textColor, const Color(0xFF1C1917));
       expect(theme.accentColor, const Color(0xFFC2410C));
-      expect(theme.isPremium, isTrue);
+      expect(theme.isPremium, isFalse);
       expect(theme.isDark, isFalse);
     });
 
@@ -162,6 +163,7 @@ void main() {
       CardAspectRatio aspect = CardAspectRatio.square,
       CardThemeConfig theme = CardPresets.minimalClean,
       String? author,
+      String? logoPath,
       GlobalKey? canvasKey,
       bool isProPurchased = false,
     }) async {
@@ -181,6 +183,7 @@ void main() {
                 aspectRatio: aspect,
                 theme: theme,
                 author: author,
+                logoPath: logoPath,
                 isProPurchased: isProPurchased,
               ),
             ),
@@ -257,6 +260,98 @@ void main() {
     testWidgets('author fills the branding slot', (tester) async {
       await pumpCanvas(tester, text: 'Quote', author: '@clean_canvas');
       expect(find.text('@clean_canvas'), findsOneWidget);
+    });
+
+    testWidgets('a brand logo paints in the header', (tester) async {
+      final logoPath = await tester.runAsync(() async {
+        final temp = await Directory.systemTemp.createTemp('card_logo_');
+        addTearDown(() async {
+          if (temp.existsSync()) temp.deleteSync(recursive: true);
+        });
+        final logo = File('${temp.path}/logo.png');
+        await logo.writeAsBytes(const [
+          0x89,
+          0x50,
+          0x4E,
+          0x47,
+          0x0D,
+          0x0A,
+          0x1A,
+          0x0A,
+          0x00,
+          0x00,
+          0x00,
+          0x0D,
+          0x49,
+          0x48,
+          0x44,
+          0x52,
+          0x00,
+          0x00,
+          0x00,
+          0x01,
+          0x00,
+          0x00,
+          0x00,
+          0x01,
+          0x08,
+          0x02,
+          0x00,
+          0x00,
+          0x00,
+          0x90,
+          0x77,
+          0x53,
+          0xDE,
+          0x00,
+          0x00,
+          0x00,
+          0x0C,
+          0x49,
+          0x44,
+          0x41,
+          0x54,
+          0x08,
+          0xD7,
+          0x63,
+          0xF8,
+          0xCF,
+          0xC0,
+          0x00,
+          0x00,
+          0x00,
+          0x03,
+          0x00,
+          0x01,
+          0x00,
+          0x05,
+          0xFE,
+          0xD4,
+          0xEF,
+          0x00,
+          0x00,
+          0x00,
+          0x00,
+          0x49,
+          0x45,
+          0x4E,
+          0x44,
+          0xAE,
+          0x42,
+          0x60,
+          0x82,
+        ]);
+        return logo.path;
+      });
+
+      await pumpCanvas(
+        tester,
+        text: 'Quote',
+        author: 'Ada',
+        logoPath: logoPath,
+      );
+
+      expect(find.byKey(const Key('card-brand-logo')), findsOneWidget);
     });
   });
 
@@ -380,7 +475,7 @@ void main() {
       );
 
       await tester.tap(find.byKey(const Key('card-aspect-story')));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       final story = tester.getSize(find.byKey(const Key('card-preview')));
       expect(
@@ -395,6 +490,79 @@ void main() {
         const Size(1080, 1920),
       );
       expect(find.byKey(const Key('card-exporter-controls')), findsOneWidget);
+    });
+
+    testWidgets('story preview collapses and expands', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        wrapExporter(
+          const MaterialApp(
+            home: CardExporterScreen(text: 'First line\n\n---\n\nSecond line'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Hide Preview'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('card-aspect-story')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hide Preview'), findsOneWidget);
+      expect(find.byKey(const Key('card-preview')), findsOneWidget);
+      final expandedControls = tester.getSize(
+        find.byKey(const Key('card-exporter-controls')),
+      );
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(const Key('card-preview-gesture'))),
+      );
+      await gesture.moveBy(const Offset(0, -40));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('preview-collapsed-banner')), findsOneWidget);
+      expect(
+        find.text('Slide 1 of 2 • Story Mode (Preview Hidden)'),
+        findsOneWidget,
+      );
+      expect(find.text('Show Preview'), findsOneWidget);
+      expect(find.byKey(const Key('card-preview')), findsNothing);
+      expect(find.byKey(const Key('slide-thumbnail-strip')), findsNothing);
+      expect(find.text('Add Slide'), findsNothing);
+
+      final collapsedControls = tester.getSize(
+        find.byKey(const Key('card-exporter-controls')),
+      );
+      expect(collapsedControls.height, greaterThan(expandedControls.height));
+
+      await tester.tap(find.byKey(const Key('preview-collapse-toggle')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('card-preview')), findsOneWidget);
+      expect(find.text('Hide Preview'), findsOneWidget);
+      expect(find.byKey(const Key('preview-collapsed-banner')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('preview-collapse-toggle')));
+      await tester.pumpAndSettle();
+      expect(find.text('Show Preview'), findsOneWidget);
+
+      final expand = await tester.startGesture(
+        tester.getCenter(find.byKey(const Key('preview-collapsed-banner'))),
+      );
+      await expand.moveBy(const Offset(0, 40));
+      await tester.pump();
+      await expand.up();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('card-preview')), findsOneWidget);
+      expect(find.byKey(const Key('carousel-page-view')), findsOneWidget);
     });
 
     testWidgets('long drafts do not show a 280-character overflow warning', (
