@@ -11,9 +11,13 @@ class FormattingToolbar extends StatelessWidget {
   const FormattingToolbar({
     super.key,
     required this.controller,
+    this.onOpenTemplates,
   });
 
   final QuillController controller;
+
+  /// Opens the framework template drawer. Kept off the Quill focus node.
+  final VoidCallback? onOpenTemplates;
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +137,14 @@ class FormattingToolbar extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 4),
+                          _FormatButton(
+                            buttonKey: const Key('format-templates'),
+                            activeKey: const Key('format-templates-active'),
+                            semanticLabel: 'Framework templates',
+                            active: false,
+                            onTap: () => _run(() => onOpenTemplates?.call()),
+                            child: const Icon(Icons.auto_awesome, size: 18),
+                          ),
                           _SlideBreakButton(
                             onTap: () => _run(
                               () => insertQuillSlideBreak(controller),

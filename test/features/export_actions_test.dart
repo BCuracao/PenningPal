@@ -237,7 +237,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Share Image'), findsOneWidget);
+      expect(find.text('Share'), findsOneWidget);
       expect(find.text('Save Image'), findsOneWidget);
     });
 

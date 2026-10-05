@@ -17,6 +17,7 @@ import '../render/card_export_service.dart';
 import '../render/card_rasterizer.dart';
 import '../render/carousel_batch_exporter.dart';
 import '../render/photo_backdrop_store.dart';
+import '../services/share_export_service.dart';
 import '../state/card_settings.dart';
 import '../templates/card_theme_config.dart';
 import 'brand_color_picker_sheet.dart';
@@ -36,6 +37,7 @@ class CardExporterScreen extends ConsumerStatefulWidget {
     this.exportService = const CardExportService(),
     this.batchExporter = const CarouselBatchExporter(),
     this.photoBackdropStore = const PhotoBackdropStore(),
+    this.shareExportService = const ShareExportService(),
   });
 
   /// Current scratchpad draft. Transformations are not written back.
@@ -50,6 +52,9 @@ class CardExporterScreen extends ConsumerStatefulWidget {
   final CardRasterizer rasterizer;
 
   final CardExportService exportService;
+
+  /// OS share sheet for a single PNG or a carousel PDF.
+  final ShareExportService shareExportService;
 
   final CarouselBatchExporter batchExporter;
 
@@ -490,7 +495,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
           return;
         }
         setState(() => _lastPngBytes = images.last);
-        await widget.exportService.shareAllSlides(
+        await widget.shareExportService.shareCarouselPdf(
           images,
           sharePositionOrigin: origin,
         );
@@ -502,7 +507,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
           return;
         }
         setState(() => _lastPngBytes = bytes);
-        await widget.exportService.shareCardImage(
+        await widget.shareExportService.shareSingleCard(
           bytes,
           sharePositionOrigin: origin,
         );
@@ -712,10 +717,8 @@ class _ExportActionBar extends StatelessWidget {
     );
     final isBusy = busy != null;
     final shareLabel = busy == _ExportAction.share
-        ? (isCarousel ? 'Exporting…' : 'Sharing…')
-        : (isCarousel
-            ? 'Share Carousel ($slideCount Slides)'
-            : 'Share Image');
+        ? 'Sharing…'
+        : (isCarousel ? 'Share PDF' : 'Share');
     final saveLabel = busy == _ExportAction.save
         ? (isCarousel ? 'Exporting…' : 'Saving…')
         : (isCarousel ? 'Save All ($slideCount Slides)' : 'Save Image');
@@ -780,7 +783,7 @@ class _ExportActionBar extends StatelessWidget {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.ios_share, size: 18),
+                          : const Icon(Icons.share, size: 18),
                       label: Text(
                         shareLabel,
                         maxLines: 1,

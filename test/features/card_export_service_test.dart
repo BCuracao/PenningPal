@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:penningpal/features/exporter/presentation/card_exporter_screen.dart';
 import 'package:penningpal/features/exporter/render/card_export_service.dart';
 import 'package:penningpal/features/exporter/render/card_rasterizer.dart';
+import 'package:penningpal/features/exporter/render/linkedin_pdf_exporter.dart';
+import 'package:penningpal/features/exporter/services/share_export_service.dart';
 import 'package:penningpal/features/paywall/paywall_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,6 +214,41 @@ void main() {
       expect(File(shared.single.path).existsSync(), isTrue);
       expect(await File(shared.single.path).readAsBytes(), png);
     });
+
+    test('shareSingleCard writes a temp PNG and opens the share sheet',
+        () async {
+      final shared = <XFile>[];
+      final service = ShareExportService(
+        temporaryDirectory: () async => tempDir,
+        shareFiles: (files, {text = '', sharePositionOrigin}) async {
+          shared.addAll(files);
+        },
+      );
+
+      await service.shareSingleCard(png);
+      expect(shared, hasLength(1));
+      expect(shared.single.mimeType, 'image/png');
+      expect(File(shared.single.path).existsSync(), isTrue);
+      expect(await File(shared.single.path).readAsBytes(), png);
+    });
+
+    test('shareCarouselPdf shares the rendered multi-page PDF', () async {
+      final pdf = File('${tempDir.path}/carousel.pdf');
+      final shared = <XFile>[];
+      final service = ShareExportService(
+        temporaryDirectory: () async => tempDir,
+        pdfExporter: _StubPdfExporter(pdf),
+        shareFiles: (files, {text = '', sharePositionOrigin}) async {
+          shared.addAll(files);
+        },
+      );
+
+      await service.shareCarouselPdf([png, png]);
+      expect(shared, hasLength(1));
+      expect(shared.single.path, pdf.path);
+      expect(shared.single.mimeType, 'application/pdf');
+      expect(pdf.existsSync(), isTrue);
+    });
   });
 
   group('CardExporterScreen actions', () {
@@ -219,6 +256,7 @@ void main() {
       WidgetTester tester, {
       required CardRasterizer rasterizer,
       required CardExportService exportService,
+      ShareExportService? shareExportService,
     }) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
@@ -237,6 +275,8 @@ void main() {
               text: 'Share me',
               rasterizer: rasterizer,
               exportService: exportService,
+              shareExportService:
+                  shareExportService ?? _NoopShareExportService(),
             ),
           ),
         ),
@@ -245,13 +285,15 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('Share Image captures PNG bytes and shares them', (tester) async {
+    testWidgets('Share captures PNG bytes and shares them', (tester) async {
       final rasterizer = _FakeRasterizer();
       final export = RecordingExportService();
+      final share = RecordingShareExportService();
       await pumpExporter(
         tester,
         rasterizer: rasterizer,
         exportService: export,
+        shareExportService: share,
       );
 
       await tester.tap(find.byKey(const Key('share-card-png')));
@@ -259,8 +301,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(rasterizer.calls, 1);
-      expect(export.shares, hasLength(1));
-      expect(export.shares.single, rasterizer.png);
+      expect(share.singleCards, hasLength(1));
+      expect(share.singleCards.single, rasterizer.png);
       expect(export.saves, isEmpty);
     });
 
@@ -302,10 +344,12 @@ void main() {
         (tester) async {
       final rasterizer = _GatedRasterizer();
       final export = RecordingExportService();
+      final share = RecordingShareExportService();
       await pumpExporter(
         tester,
         rasterizer: rasterizer,
         exportService: export,
+        shareExportService: share,
       );
 
       await tester.tap(find.byKey(const Key('share-card-png')));
@@ -341,7 +385,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(export.shares, hasLength(1));
+      expect(share.singleCards, hasLength(1));
       expect(export.saves, isEmpty);
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
@@ -375,21 +419,47 @@ class _GatedRasterizer extends CardRasterizer {
   }
 }
 
+class _StubPdfExporter extends LinkedInPdfExporter {
+  _StubPdfExporter(this.output);
+
+  final File output;
+
+  @override
+  Future<File> generatePdfCarousel(
+    List<Uint8List> slidePngs, {
+    String filename = LinkedInPdfExporter.defaultFilename,
+  }) async {
+    await output.parent.create(recursive: true);
+    await output.writeAsBytes(const [0x25, 0x50, 0x44, 0x46], flush: true);
+    return output;
+  }
+}
+
+class RecordingShareExportService extends ShareExportService {
+  final List<Uint8List> singleCards = <Uint8List>[];
+
+  @override
+  Future<void> shareSingleCard(
+    Uint8List pngBytes, {
+    Rect? sharePositionOrigin,
+  }) async {
+    singleCards.add(pngBytes);
+  }
+}
+
+class _NoopShareExportService extends ShareExportService {
+  @override
+  Future<void> shareSingleCard(
+    Uint8List pngBytes, {
+    Rect? sharePositionOrigin,
+  }) async {}
+}
+
 class RecordingExportService extends CardExportService {
   RecordingExportService({this.saveResult = true});
 
   final bool saveResult;
-  final List<Uint8List> shares = <Uint8List>[];
   final List<Uint8List> saves = <Uint8List>[];
-
-  @override
-  Future<void> shareCardImage(
-    Uint8List byteData, {
-    String text = '',
-    Rect? sharePositionOrigin,
-  }) async {
-    shares.add(byteData);
-  }
 
   @override
   Future<bool> saveToGallery(

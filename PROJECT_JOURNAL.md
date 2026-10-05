@@ -33,6 +33,7 @@
 - [x] Task 4.2: Configure App branding (SocialSlate), offline legal pages, launcher icons, and release ProGuard rules.
 - [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
 - [x] Task 4.4: Production RevenueCat StoreKit 2 integration, dynamic localized price, strict Pro gating, and local StoreKit configuration.
+- [x] Phase 1: Platform character HUD, LinkedIn fold warning, framework templates, and native share sheet.
 
 ## Session Log
 <!-- Agents append timestamped summaries of completed work here -->
@@ -315,3 +316,13 @@
 - Validation reported display name PenningPal, bundle `com.shoebillsoftware.penningpal`, deployment target 15.0, signed with team `Y6BQW63Q2S`.
 - Modified: `ios/Runner/Info.plist`, `PROJECT_JOURNAL.md`.
 - Follow-up: upload `PenningPal.ipa` with Transporter or `xcrun altool`; register the bundle ID and `pro_lifetime` in App Store Connect before TestFlight purchases.
+
+### 2026-10-05 — Phase 1: Creator power-ups
+- `PlatformMetrics` (pure Dart) counts words, reading time at 200 wpm, and LinkedIn 3,000 / X 280 / Threads 500 character meters. Tone is green through 70%, amber through the limit, and red on overflow. The opening hook is the text before the first blank line or `---` rule; hooks longer than 210 characters raise the LinkedIn fold warning. Line-break indexes are reported so the fold line is visible. The raw Markdown buffer is not rewritten.
+- `PlatformCounterHud` docks above the formatting toolbar. Tapping a platform badge focuses that limit. `LinkedInFoldIndicator` sits under the editor and marks the mobile "see more" cutoff.
+- `FrameworkTemplates` holds Contrarian Hook, The 5-Step Breakdown, and The Story + Lesson. Each body includes a `---` slide break. The toolbar sparkle button opens `TemplatePickerBottomSheet`. Blank drafts insert immediately. Drafts with text ask "Append to existing text" or "Replace current draft". Append keeps existing slide breaks; Quill round-trips them back to `---`.
+- `ShareExportService` writes a temp PNG and calls `SharePlus.instance.share(ShareParams(files: [XFile(path)]))` for a single card. Carousel **Share** (`Icons.share`, labeled Share PDF) rasterizes the deck and shares the multi-page PDF. Save to Photos is unchanged. **Export LinkedIn PDF** stays the Pro-gated action.
+- `share_plus` ^12.0.1 was already in `pubspec.yaml`. `flutter pub get` resolves it to 12.0.2.
+- Tests: `flutter analyze lib test` clean; `flutter test` 303 passed. New coverage is `test/features/scratchpad_powerups_test.dart` plus share-service cases in `test/features/card_export_service_test.dart`.
+- Modified: `lib/features/scratchpad/state/{platform_metrics,framework_templates}.dart`, `lib/features/scratchpad/presentation/{formatting_toolbar,scratchpad_screen}.dart`, `lib/features/scratchpad/presentation/widgets/{platform_counter_hud,linkedin_fold_indicator,template_picker_bottom_sheet}.dart`, `lib/features/exporter/services/share_export_service.dart`, `lib/features/exporter/presentation/card_exporter_screen.dart`, exporter widget tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases. Share PDF on a carousel is available from the Share button without the Pro sheet; Export LinkedIn PDF remains gated.

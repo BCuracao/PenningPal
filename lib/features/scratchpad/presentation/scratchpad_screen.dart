@@ -15,6 +15,9 @@ import 'formatting_toolbar.dart';
 import 'scratchpad_editor_styles.dart';
 import 'settings_bottom_sheet.dart';
 import 'slide_break_embed.dart';
+import 'widgets/linkedin_fold_indicator.dart';
+import 'widgets/platform_counter_hud.dart';
+import 'widgets/template_picker_bottom_sheet.dart';
 
 /// Distraction-free markdown scratchpad with live stats and auto-save.
 class ScratchpadScreen extends ConsumerStatefulWidget {
@@ -169,7 +172,12 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
               ),
             ),
           ),
-          FormattingToolbar(controller: _controller),
+          LinkedInFoldIndicator(markdown: state.content),
+          PlatformCounterHud(markdown: state.content),
+          FormattingToolbar(
+            controller: _controller,
+            onOpenTemplates: _openTemplates,
+          ),
           const ExportToolbar(),
           _ScratchpadStatusBar(state: state),
         ],
@@ -188,6 +196,20 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 160));
     if (!mounted) return;
     await SettingsBottomSheet.show(context);
+  }
+
+  Future<void> _openTemplates() {
+    return TemplatePickerBottomSheet.show(
+      context,
+      currentMarkdown: ref.read(scratchpadProvider).content,
+      onApply: _applyTemplateMarkdown,
+    );
+  }
+
+  void _applyTemplateMarkdown(String markdown) {
+    if (!mounted) return;
+    ref.read(scratchpadProvider.notifier).updateContent(markdown);
+    _loadDraft(markdown);
   }
 
   Future<void> _renameDraft() async {

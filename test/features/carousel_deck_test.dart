@@ -8,6 +8,7 @@ import 'package:penningpal/features/exporter/presentation/card_exporter_screen.d
 import 'package:penningpal/features/exporter/render/card_export_service.dart';
 import 'package:penningpal/features/exporter/render/card_rasterizer.dart';
 import 'package:penningpal/features/exporter/render/carousel_batch_exporter.dart';
+import 'package:penningpal/features/exporter/services/share_export_service.dart';
 import 'package:penningpal/features/exporter/templates/card_theme_config.dart';
 import 'package:penningpal/features/paywall/paywall_provider.dart';
 import 'package:flutter/material.dart';
@@ -232,6 +233,7 @@ void main() {
       CardRasterizer? rasterizer,
       CardExportService? exportService,
       CarouselBatchExporter? batchExporter,
+      ShareExportService? shareExportService,
       bool isPro = true,
     }) async {
       tester.view.physicalSize = const Size(900, 1800);
@@ -251,6 +253,8 @@ void main() {
               text: text,
               rasterizer: rasterizer ?? const CardRasterizer(),
               exportService: exportService ?? _NoopExportService(),
+              shareExportService:
+                  shareExportService ?? _NoopShareExportService(),
               batchExporter: batchExporter ?? const CarouselBatchExporter(),
             ),
           ),
@@ -267,7 +271,7 @@ void main() {
       expect(find.byKey(const Key('carousel-page-view')), findsOneWidget);
       expect(find.byKey(const Key('carousel-slide-banner')), findsOneWidget);
       expect(find.text('Slide 1 of 3'), findsOneWidget);
-      expect(find.text('Share Carousel (3 Slides)'), findsOneWidget);
+      expect(find.text('Share PDF'), findsOneWidget);
       expect(find.text('Save All (3 Slides)'), findsOneWidget);
       expect(find.text('Export LinkedIn PDF'), findsOneWidget);
       expect(find.byKey(const Key('export-linkedin-pdf')), findsOneWidget);
@@ -285,20 +289,22 @@ void main() {
       await pumpExporter(tester, text: 'Just one quote');
 
       expect(find.byKey(const Key('carousel-page-view')), findsNothing);
-      expect(find.text('Share Image'), findsOneWidget);
+      expect(find.text('Share'), findsOneWidget);
       expect(find.text('Save Image'), findsOneWidget);
       expect(find.byKey(const Key('export-linkedin-pdf')), findsNothing);
       expect(find.text('Just one quote'), findsOneWidget);
     });
 
-    testWidgets('Share Carousel rasterizes every slide then shares them all',
+    testWidgets('Share PDF rasterizes every slide then shares the PDF',
         (tester) async {
       final batch = _FakeBatchExporter();
       final export = RecordingCarouselExportService();
+      final share = _RecordingShareExportService();
       await pumpExporter(
         tester,
         batchExporter: batch,
         exportService: export,
+        shareExportService: share,
       );
 
       await tester.tap(find.byKey(const Key('share-card-png')));
@@ -307,8 +313,9 @@ void main() {
 
       expect(batch.calls, 1);
       expect(batch.lastPro, isTrue);
-      expect(export.shareAllCalls, hasLength(1));
-      expect(export.shareAllCalls.single, hasLength(3));
+      expect(share.carousels, hasLength(1));
+      expect(share.carousels.single, hasLength(3));
+      expect(export.shareAllCalls, isEmpty);
     });
 
     testWidgets('Save All writes every slide and shows export progress',
@@ -551,6 +558,26 @@ class _GatedBatchExporter extends CarouselBatchExporter {
   }) async {
     onProgress?.call(1, 3);
     return release.future;
+  }
+}
+
+class _NoopShareExportService extends ShareExportService {
+  @override
+  Future<void> shareCarouselPdf(
+    List<Uint8List> slidePngs, {
+    Rect? sharePositionOrigin,
+  }) async {}
+}
+
+class _RecordingShareExportService extends ShareExportService {
+  final List<List<Uint8List>> carousels = <List<Uint8List>>[];
+
+  @override
+  Future<void> shareCarouselPdf(
+    List<Uint8List> slidePngs, {
+    Rect? sharePositionOrigin,
+  }) async {
+    carousels.add(List<Uint8List>.from(slidePngs));
   }
 }
 

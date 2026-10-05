@@ -4,6 +4,7 @@ import 'package:penningpal/features/exporter/presentation/card_canvas.dart';
 import 'package:penningpal/features/exporter/presentation/card_exporter_screen.dart';
 import 'package:penningpal/features/exporter/render/card_export_service.dart';
 import 'package:penningpal/features/exporter/render/card_rasterizer.dart';
+import 'package:penningpal/features/exporter/services/share_export_service.dart';
 import 'package:penningpal/features/exporter/templates/card_theme_config.dart';
 import 'package:penningpal/features/paywall/paywall_provider.dart';
 import 'package:flutter/material.dart';
@@ -329,7 +330,7 @@ void main() {
       expect(find.byType(CardCanvas), findsOneWidget);
       expect(find.byKey(const Key('card-preview')), findsOneWidget);
       expect(find.text(draft), findsOneWidget);
-      expect(find.text('Share Image'), findsOneWidget);
+      expect(find.text('Share'), findsOneWidget);
       expect(find.text('Save Image'), findsOneWidget);
       expect(find.text('Copy Card'), findsOneWidget);
       expect(find.byKey(const Key('card-char-meter')), findsOneWidget);
@@ -377,6 +378,7 @@ void main() {
               text: 'Export me',
               rasterizer: rasterizer,
               exportService: _NoopExportService(),
+              shareExportService: _NoopShareExportService(),
             ),
           ),
         ),
@@ -404,6 +406,14 @@ class _FakeRasterizer extends CardRasterizer {
     calls += 1;
     return Uint8List.fromList(CardRasterizer.pngSignature);
   }
+}
+
+class _NoopShareExportService extends ShareExportService {
+  @override
+  Future<void> shareSingleCard(
+    Uint8List pngBytes, {
+    Rect? sharePositionOrigin,
+  }) async {}
 }
 
 class _NoopExportService extends CardExportService {
