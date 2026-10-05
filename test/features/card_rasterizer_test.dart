@@ -329,7 +329,7 @@ void main() {
 
       expect(find.byType(CardCanvas), findsOneWidget);
       expect(find.byKey(const Key('card-preview')), findsOneWidget);
-      expect(find.text(draft), findsOneWidget);
+      expect(find.text(draft), findsWidgets);
       expect(find.text('Share'), findsOneWidget);
       expect(find.text('Save Image'), findsOneWidget);
       expect(find.text('Copy Card'), findsOneWidget);

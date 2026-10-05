@@ -37,28 +37,28 @@ void main() {
   });
 
   group('CardLayout.fontScaleFor', () {
-    test('punchy quotes under 140 characters scale up 1.35x', () {
-      expect(CardLayout.fontScaleFor('x' * 50), CardLayout.punchyScale);
-      expect(CardLayout.fontScaleFor('x' * 139), CardLayout.punchyScale);
-      expect(CardLayout.fontScaleFor('x' * 50), 1.35);
+    test('hooks under 120 characters scale to 1.15x', () {
+      expect(CardLayout.fontScaleFor('x' * 50), CardLayout.hookScale);
+      expect(CardLayout.fontScaleFor('x' * 119), CardLayout.hookScale);
+      expect(CardLayout.fontScaleFor('x' * 50), 1.15);
     });
 
-    test('standard posts between 140 and 350 use 1.1x', () {
-      expect(CardLayout.fontScaleFor('x' * 140), CardLayout.standardScale);
-      expect(CardLayout.fontScaleFor('x' * 200), 1.1);
-      expect(CardLayout.fontScaleFor('x' * 349), 1.1);
+    test('posts from 120 through 280 stay at 1.0x', () {
+      expect(CardLayout.fontScaleFor('x' * 120), CardLayout.baselineScale);
+      expect(CardLayout.fontScaleFor('x' * 200), 1.0);
+      expect(CardLayout.fontScaleFor('x' * 280), 1.0);
     });
 
-    test('long-form copy between 350 and 700 scales to 0.95x', () {
-      expect(CardLayout.fontScaleFor('x' * 350), CardLayout.longFormScale);
-      expect(CardLayout.fontScaleFor('x' * 500), 0.95);
-      expect(CardLayout.fontScaleFor('x' * 700), 0.95);
+    test('copy from 281 through 450 scales to 0.85x', () {
+      expect(CardLayout.fontScaleFor('x' * 281), CardLayout.compactScale);
+      expect(CardLayout.fontScaleFor('x' * 400), 0.85);
+      expect(CardLayout.fontScaleFor('x' * 450), 0.85);
     });
 
-    test('dense copy above 700 stays at the 0.82x floor', () {
-      expect(CardLayout.fontScaleFor('x' * 701), CardLayout.denseScale);
-      expect(CardLayout.fontScaleFor('x' * 800), 0.82);
-      expect(CardLayout.fontScaleFor('x' * 2000), greaterThanOrEqualTo(0.82));
+    test('copy above 450 stays inside the 0.75x floor', () {
+      expect(CardLayout.fontScaleFor('x' * 451), CardLayout.denseScale);
+      expect(CardLayout.fontScaleFor('x' * 800), 0.75);
+      expect(CardLayout.fontScaleFor('x' * 2000), inInclusiveRange(0.75, 1.15));
     });
   });
 

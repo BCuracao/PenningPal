@@ -105,6 +105,16 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
       },
     );
 
+    ref.listen<String>(
+      scratchpadProvider.select((value) => value.content),
+      (previous, next) {
+        if (previous == null || previous == next || _applyingExternal) return;
+        final current = deltaToMarkdown(_controller.document.toDelta());
+        if (current == next) return;
+        _loadDraft(next);
+      },
+    );
+
     return Scaffold(
       key: _scaffoldKey,
       resizeToAvoidBottomInset: true,

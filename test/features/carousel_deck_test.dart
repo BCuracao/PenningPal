@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:penningpal/features/exporter/models/carousel_deck.dart';
+import 'package:penningpal/features/exporter/models/slide_role.dart';
 import 'package:penningpal/features/exporter/presentation/card_canvas.dart';
 import 'package:penningpal/features/exporter/presentation/card_exporter_screen.dart';
 import 'package:penningpal/features/exporter/render/card_export_service.dart';
@@ -12,6 +13,7 @@ import 'package:penningpal/features/exporter/services/share_export_service.dart'
 import 'package:penningpal/features/exporter/templates/card_theme_config.dart';
 import 'package:penningpal/features/paywall/paywall_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -41,44 +43,44 @@ void main() {
     });
 
     test('splits on *** and ___ thematic breaks', () {
-      expect(
-        CarouselDeck.fromMarkdown('Alpha\n***\nBeta').slides,
-        ['Alpha', 'Beta'],
-      );
-      expect(
-        CarouselDeck.fromMarkdown('Alpha\n___\nBeta').slides,
-        ['Alpha', 'Beta'],
-      );
+      expect(CarouselDeck.fromMarkdown('Alpha\n***\nBeta').slides, [
+        'Alpha',
+        'Beta',
+      ]);
+      expect(CarouselDeck.fromMarkdown('Alpha\n___\nBeta').slides, [
+        'Alpha',
+        'Beta',
+      ]);
     });
 
     test('allows extra dashes/stars/underscores beyond three', () {
-      expect(
-        CarouselDeck.fromMarkdown('One\n----\nTwo').slides,
-        ['One', 'Two'],
-      );
-      expect(
-        CarouselDeck.fromMarkdown('One\n*****\nTwo').slides,
-        ['One', 'Two'],
-      );
-      expect(
-        CarouselDeck.fromMarkdown('One\n____\nTwo').slides,
-        ['One', 'Two'],
-      );
+      expect(CarouselDeck.fromMarkdown('One\n----\nTwo').slides, [
+        'One',
+        'Two',
+      ]);
+      expect(CarouselDeck.fromMarkdown('One\n*****\nTwo').slides, [
+        'One',
+        'Two',
+      ]);
+      expect(CarouselDeck.fromMarkdown('One\n____\nTwo').slides, [
+        'One',
+        'Two',
+      ]);
     });
 
     test('tolerates varied whitespace around the divider', () {
-      expect(
-        CarouselDeck.fromMarkdown('One\n  ---  \nTwo').slides,
-        ['One', 'Two'],
-      );
-      expect(
-        CarouselDeck.fromMarkdown('One\n\n\t---\t\n\nTwo').slides,
-        ['One', 'Two'],
-      );
-      expect(
-        CarouselDeck.fromMarkdown('One\n *** \nTwo').slides,
-        ['One', 'Two'],
-      );
+      expect(CarouselDeck.fromMarkdown('One\n  ---  \nTwo').slides, [
+        'One',
+        'Two',
+      ]);
+      expect(CarouselDeck.fromMarkdown('One\n\n\t---\t\n\nTwo').slides, [
+        'One',
+        'Two',
+      ]);
+      expect(CarouselDeck.fromMarkdown('One\n *** \nTwo').slides, [
+        'One',
+        'Two',
+      ]);
     });
 
     test('normalizes CRLF before splitting', () {
@@ -104,10 +106,9 @@ void main() {
     });
 
     test('leading or trailing dividers do not create empty slides', () {
-      expect(
-        CarouselDeck.fromMarkdown('---\nOnly slide\n---').slides,
-        ['Only slide'],
-      );
+      expect(CarouselDeck.fromMarkdown('---\nOnly slide\n---').slides, [
+        'Only slide',
+      ]);
       expect(
         CarouselDeck.fromMarkdown('---\nOnly slide\n---').isCarousel,
         isFalse,
@@ -198,7 +199,9 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('hides the badge when totalSlides is null or 1', (tester) async {
+    testWidgets('hides the badge when totalSlides is null or 1', (
+      tester,
+    ) async {
       await pumpCanvas(tester);
       expect(find.byKey(const Key('card-pagination-badge')), findsNothing);
 
@@ -206,8 +209,9 @@ void main() {
       expect(find.byKey(const Key('card-pagination-badge')), findsNothing);
     });
 
-    testWidgets('shows a 1-based pill that clears the watermark and header',
-        (tester) async {
+    testWidgets('shows a 1-based pill that clears the watermark and header', (
+      tester,
+    ) async {
       await pumpCanvas(tester, currentSlideIndex: 0, totalSlides: 5);
 
       expect(find.byKey(const Key('card-pagination-badge')), findsOneWidget);
@@ -215,8 +219,9 @@ void main() {
       expect(find.text(CardLayout.watermarkLabel), findsOneWidget);
       expect(find.text('PenningPal'), findsOneWidget);
 
-      final badge =
-          tester.getRect(find.byKey(const Key('card-pagination-badge')));
+      final badge = tester.getRect(
+        find.byKey(const Key('card-pagination-badge')),
+      );
       final watermark = tester.getRect(find.byKey(const Key('card-watermark')));
       final brand = tester.getRect(find.byKey(const Key('card-brand-slot')));
       expect(badge.overlaps(watermark), isFalse);
@@ -264,8 +269,9 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('pages slides, shows Slide X of Y, and uses batch labels',
-        (tester) async {
+    testWidgets('pages slides, shows Slide X of Y, and uses batch labels', (
+      tester,
+    ) async {
       await pumpExporter(tester);
 
       expect(find.byKey(const Key('carousel-page-view')), findsOneWidget);
@@ -275,28 +281,31 @@ void main() {
       expect(find.text('Save All (3 Slides)'), findsOneWidget);
       expect(find.text('Export LinkedIn PDF'), findsOneWidget);
       expect(find.byKey(const Key('export-linkedin-pdf')), findsOneWidget);
-      expect(find.text('First slide'), findsOneWidget);
+      expect(find.text('First slide'), findsWidgets);
 
       await tester.tap(find.byKey(const Key('carousel-next')));
       await tester.pumpAndSettle();
 
       expect(find.text('Slide 2 of 3'), findsOneWidget);
-      expect(find.text('Second slide'), findsOneWidget);
+      expect(find.text('Second slide'), findsWidgets);
     });
 
-    testWidgets('single-slide drafts keep the static preview and image labels',
-        (tester) async {
-      await pumpExporter(tester, text: 'Just one quote');
+    testWidgets(
+      'single-slide drafts keep the static preview and image labels',
+      (tester) async {
+        await pumpExporter(tester, text: 'Just one quote');
 
-      expect(find.byKey(const Key('carousel-page-view')), findsNothing);
-      expect(find.text('Share'), findsOneWidget);
-      expect(find.text('Save Image'), findsOneWidget);
-      expect(find.byKey(const Key('export-linkedin-pdf')), findsNothing);
-      expect(find.text('Just one quote'), findsOneWidget);
-    });
+        expect(find.byKey(const Key('carousel-page-view')), findsNothing);
+        expect(find.text('Share'), findsOneWidget);
+        expect(find.text('Save Image'), findsOneWidget);
+        expect(find.byKey(const Key('export-linkedin-pdf')), findsNothing);
+        expect(find.text('Just one quote'), findsWidgets);
+      },
+    );
 
-    testWidgets('Share PDF rasterizes every slide then shares the PDF',
-        (tester) async {
+    testWidgets('Share PDF rasterizes every slide then shares the PDF', (
+      tester,
+    ) async {
       final batch = _FakeBatchExporter();
       final export = RecordingCarouselExportService();
       final share = _RecordingShareExportService();
@@ -318,15 +327,12 @@ void main() {
       expect(export.shareAllCalls, isEmpty);
     });
 
-    testWidgets('Save All writes every slide and shows export progress',
-        (tester) async {
+    testWidgets('Save All writes every slide and shows export progress', (
+      tester,
+    ) async {
       final batch = _GatedBatchExporter();
       final export = RecordingCarouselExportService();
-      await pumpExporter(
-        tester,
-        batchExporter: batch,
-        exportService: export,
-      );
+      await pumpExporter(tester, batchExporter: batch, exportService: export);
 
       await tester.tap(find.byKey(const Key('save-card-gallery')));
       await tester.pump();
@@ -343,8 +349,9 @@ void main() {
       expect(find.text('3 slides saved to Photos'), findsOneWidget);
     });
 
-    testWidgets('unentitled carousel export still forces watermarks',
-        (tester) async {
+    testWidgets('unentitled carousel export still forces watermarks', (
+      tester,
+    ) async {
       final batch = _FakeBatchExporter();
       await pumpExporter(
         tester,
@@ -361,8 +368,9 @@ void main() {
       expect(find.byKey(const Key('card-watermark')), findsWidgets);
     });
 
-    testWidgets('unentitled LinkedIn PDF export opens the paywall',
-        (tester) async {
+    testWidgets('unentitled LinkedIn PDF export opens the paywall', (
+      tester,
+    ) async {
       final batch = _FakeBatchExporter();
       await pumpExporter(tester, isPro: false, batchExporter: batch);
 
@@ -384,15 +392,12 @@ void main() {
       }
     });
 
-    testWidgets('pro LinkedIn PDF export rasterizes then shares a PDF',
-        (tester) async {
+    testWidgets('pro LinkedIn PDF export rasterizes then shares a PDF', (
+      tester,
+    ) async {
       final batch = _FakeBatchExporter();
       final export = RecordingCarouselExportService();
-      await pumpExporter(
-        tester,
-        batchExporter: batch,
-        exportService: export,
-      );
+      await pumpExporter(tester, batchExporter: batch, exportService: export);
 
       await tester.ensureVisible(find.byKey(const Key('export-linkedin-pdf')));
       await tester.tap(find.byKey(const Key('export-linkedin-pdf')));
@@ -426,6 +431,61 @@ void main() {
       expect(rasterizer.calls, 3);
     });
 
+    testWidgets('renderDeck reads each slide body before capturing it', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      late BuildContext exportContext;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              exportContext = context;
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final rasterizer = _SlideTextRasterizer();
+      final deck = CarouselDeck.fromMarkdown('ALPHA\n---\nBETA\n---\nGAMMA');
+      final pending = CarouselBatchExporter(rasterizer: rasterizer).renderDeck(
+        deck,
+        CardPresets.minimalClean,
+        CardAspectRatio.square,
+        true,
+        context: exportContext,
+      );
+
+      Object? error;
+      pending.catchError((Object e, StackTrace _) {
+        error = e;
+        return <Uint8List>[];
+      });
+
+      for (
+        var i = 0;
+        i < 40 && rasterizer.texts.length < 3 && error == null;
+        i++
+      ) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(error, isNull, reason: 'renderDeck should capture every slide');
+      expect(rasterizer.texts, hasLength(3));
+      expect(rasterizer.texts[0], contains('ALPHA'));
+      expect(rasterizer.texts[1], contains('BETA'));
+      expect(rasterizer.texts[2], contains('GAMMA'));
+      expect(rasterizer.texts[0], contains('1 / 3'));
+      expect(rasterizer.texts[1], contains('2 / 3'));
+      expect(rasterizer.texts[2], contains('3 / 3'));
+    });
+
     test('captureSlides throws when a frame fails to rasterize', () async {
       final exporter = CarouselBatchExporter(
         rasterizer: _CountingRasterizer(succeed: false),
@@ -456,44 +516,91 @@ void main() {
       }
     });
 
-    test('shareAllSlides writes unique temp PNGs and shares them together',
-        () async {
-      final shared = <List<String>>[];
-      final service = CardExportService(
-        temporaryDirectory: () async => tempDir,
-        shareFiles: (files, {text = '', sharePositionOrigin}) async {
-          shared.add(files.map((file) => file.path).toList());
-        },
-      );
-      final png = Uint8List.fromList(CardRasterizer.pngSignature);
+    test(
+      'shareAllSlides writes unique temp PNGs and shares them together',
+      () async {
+        final shared = <List<String>>[];
+        final service = CardExportService(
+          temporaryDirectory: () async => tempDir,
+          shareFiles: (files, {text = '', sharePositionOrigin}) async {
+            shared.add(files.map((file) => file.path).toList());
+          },
+        );
+        final png = Uint8List.fromList(CardRasterizer.pngSignature);
 
-      await service.shareAllSlides([png, png, png]);
+        await service.shareAllSlides([png, png, png]);
 
-      expect(shared, hasLength(1));
-      expect(shared.single, hasLength(3));
-      expect(shared.single.toSet(), hasLength(3));
-      for (final path in shared.single) {
-        expect(path, contains('slide_'));
-        expect(path, endsWith('.png'));
-      }
-    });
+        expect(shared, hasLength(1));
+        expect(shared.single, hasLength(3));
+        expect(shared.single.toSet(), hasLength(3));
+        for (final path in shared.single) {
+          expect(path, contains('slide_'));
+          expect(path, endsWith('.png'));
+        }
+      },
+    );
 
-    test('saveAllToGallery saves each slide sequentially and returns the count',
-        () async {
-      final names = <String>[];
-      final service = CardExportService(
-        hasGalleryAccess: ({toAlbum = false}) async => true,
-        putImageBytes: (bytes, {album, name = 'image'}) async {
-          names.add(name);
-        },
-      );
-      final png = Uint8List.fromList([...CardRasterizer.pngSignature, 1, 2]);
+    test(
+      'saveAllToGallery saves each slide sequentially and returns the count',
+      () async {
+        final names = <String>[];
+        final service = CardExportService(
+          hasGalleryAccess: ({toAlbum = false}) async => true,
+          putImageBytes: (bytes, {album, name = 'image'}) async {
+            names.add(name);
+          },
+        );
+        final png = Uint8List.fromList([...CardRasterizer.pngSignature, 1, 2]);
 
-      final saved = await service.saveAllToGallery([png, png]);
-      expect(saved, 2);
-      expect(names, hasLength(2));
-    });
+        final saved = await service.saveAllToGallery([png, png]);
+        expect(saved, 2);
+        expect(names, hasLength(2));
+      },
+    );
   });
+}
+
+class _SlideTextRasterizer extends CardRasterizer {
+  final texts = <String>[];
+
+  @override
+  Future<Uint8List?> capturePng(
+    GlobalKey boundaryKey, {
+    double pixelRatio = CardRasterizer.defaultPixelRatio,
+  }) async {
+    final context = boundaryKey.currentContext;
+    if (context == null) {
+      texts.add('unmounted');
+      return Uint8List.fromList(CardRasterizer.pngSignature);
+    }
+    final boundary = context.findRenderObject();
+    if (boundary is! RenderRepaintBoundary) {
+      texts.add('unpainted:${_plainText(context)}');
+      return Uint8List.fromList(CardRasterizer.pngSignature);
+    }
+    if (boundary.debugNeedsPaint) {
+      texts.add('unpainted:${_plainText(context)}');
+      return Uint8List.fromList(CardRasterizer.pngSignature);
+    }
+    texts.add(_plainText(context));
+    return Uint8List.fromList(CardRasterizer.pngSignature);
+  }
+
+  static String _plainText(BuildContext context) {
+    final buffer = StringBuffer();
+    void visit(Element element) {
+      final widget = element.widget;
+      if (widget is RichText) {
+        buffer.write(widget.text.toPlainText());
+      } else if (widget is Text) {
+        buffer.write(widget.data ?? '');
+      }
+      element.visitChildren(visit);
+    }
+
+    visit(context as Element);
+    return buffer.toString();
+  }
 }
 
 class _CountingRasterizer extends CardRasterizer {
@@ -526,6 +633,10 @@ class _FakeBatchExporter extends CarouselBatchExporter {
     required BuildContext context,
     String? author,
     String? authorHandle,
+    List<SlideRole>? slideRoles,
+    String? avatarPath,
+    String? avatarInitials,
+    Color? avatarColor,
     void Function(int current, int total)? onProgress,
   }) async {
     calls += 1;
@@ -554,6 +665,10 @@ class _GatedBatchExporter extends CarouselBatchExporter {
     required BuildContext context,
     String? author,
     String? authorHandle,
+    List<SlideRole>? slideRoles,
+    String? avatarPath,
+    String? avatarInitials,
+    Color? avatarColor,
     void Function(int current, int total)? onProgress,
   }) async {
     onProgress?.call(1, 3);

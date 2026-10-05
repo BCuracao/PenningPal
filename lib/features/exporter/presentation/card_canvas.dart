@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/carousel_deck.dart';
+import '../models/slide_role.dart';
 import '../render/code_block_parser.dart';
 import '../templates/card_theme_config.dart';
 import 'markdown_card_content.dart';
@@ -26,6 +27,10 @@ class CardCanvas extends StatelessWidget {
     this.isProPurchased = false,
     this.currentSlideIndex,
     this.totalSlides,
+    this.slideRole,
+    this.avatarPath,
+    this.avatarInitials = '',
+    this.avatarColor,
   });
 
   /// Key attached to the [RepaintBoundary] — not this widget.
@@ -48,6 +53,18 @@ class CardCanvas extends StatelessWidget {
   /// Total slides in the deck. A badge is shown when this is greater than 1.
   final int? totalSlides;
 
+  /// Explicit role. When null, [SlideRoles.detect] uses the slide index.
+  final SlideRole? slideRole;
+
+  /// Local creator photo for the CTA signature. Never uploaded.
+  final String? avatarPath;
+
+  /// Fallback initials when [avatarPath] is empty or fails to decode.
+  final String avatarInitials;
+
+  /// Disc behind the CTA initials.
+  final Color? avatarColor;
+
   @override
   Widget build(BuildContext context) {
     final body = text.trim();
@@ -60,6 +77,11 @@ class CardCanvas extends StatelessWidget {
 
     final showPagination = totalSlides != null && totalSlides! > 1;
     final slideIndex = currentSlideIndex ?? 0;
+    final role = SlideRoles.resolve(
+      override: slideRole,
+      index: slideIndex,
+      totalSlides: totalSlides ?? 1,
+    );
 
     return RepaintBoundary(
       key: canvasKey,
@@ -101,12 +123,20 @@ class CardCanvas extends StatelessWidget {
                       text: body,
                       author: author,
                       authorHandle: authorHandle,
+                      role: role,
+                      avatarPath: avatarPath,
+                      avatarInitials: avatarInitials,
+                      avatarColor: avatarColor ?? displayTheme.accentColor,
                     )
                   : _PlainCard(
                       theme: displayTheme,
                       text: body,
                       author: author,
                       authorHandle: authorHandle,
+                      role: role,
+                      avatarPath: avatarPath,
+                      avatarInitials: avatarInitials,
+                      avatarColor: avatarColor ?? displayTheme.accentColor,
                     ),
             ),
             if (border != null)
@@ -198,12 +228,20 @@ class _PlainCard extends StatelessWidget {
     required this.text,
     required this.author,
     required this.authorHandle,
+    required this.role,
+    required this.avatarPath,
+    required this.avatarInitials,
+    required this.avatarColor,
   });
 
   final CardThemeConfig theme;
   final String text;
   final String? author;
   final String? authorHandle;
+  final SlideRole role;
+  final String? avatarPath;
+  final String avatarInitials;
+  final Color avatarColor;
 
   @override
   Widget build(BuildContext context) {
@@ -220,27 +258,44 @@ class _PlainCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: CardLayout.headerHeight,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _AuthorHeader(
-                name: identity.name,
-                handle: identity.handle,
-                theme: theme,
-                muted: muted,
+          if (role == SlideRole.cover)
+            Padding(
+              padding: const EdgeInsets.only(right: 160, bottom: 16),
+              child: _CoverEyebrow(text: text, theme: theme),
+            ),
+          if (role != SlideRole.cta)
+            SizedBox(
+              height: CardLayout.headerHeight,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _AuthorHeader(
+                  name: identity.name,
+                  handle: identity.handle,
+                  theme: theme,
+                  muted: muted,
+                ),
               ),
             ),
-          ),
           Expanded(
             child: _SlideBody(
               text: text,
               theme: theme,
+              role: role,
               showCodeChrome: false,
               chromeTitle: identity.handle ?? identity.name,
               emptyColor: muted,
             ),
           ),
+          if (role == SlideRole.cta)
+            _CtaSignature(
+              name: identity.name,
+              handle: identity.handle,
+              theme: theme,
+              muted: muted,
+              avatarPath: avatarPath,
+              avatarInitials: avatarInitials,
+              avatarColor: avatarColor,
+            ),
           if (theme.showWatermark)
             SizedBox(
               height: CardLayout.footerHeight,
@@ -274,12 +329,20 @@ class _TerminalCard extends StatelessWidget {
     required this.text,
     required this.author,
     required this.authorHandle,
+    required this.role,
+    required this.avatarPath,
+    required this.avatarInitials,
+    required this.avatarColor,
   });
 
   final CardThemeConfig theme;
   final String text;
   final String? author;
   final String? authorHandle;
+  final SlideRole role;
+  final String? avatarPath;
+  final String avatarInitials;
+  final Color avatarColor;
 
   @override
   Widget build(BuildContext context) {
@@ -302,13 +365,36 @@ class _TerminalCard extends StatelessWidget {
               CardLayout.padding,
               24,
             ),
-            child: _SlideBody(
-              text: text,
-              theme: theme,
-              showCodeChrome: useCodeWindow,
-              chromeTitle: title,
-              emptyColor: muted,
-              parsed: parsed,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (role == SlideRole.cover)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 160, bottom: 16),
+                    child: _CoverEyebrow(text: text, theme: theme),
+                  ),
+                Expanded(
+                  child: _SlideBody(
+                    text: text,
+                    theme: theme,
+                    role: role,
+                    showCodeChrome: useCodeWindow,
+                    chromeTitle: title,
+                    emptyColor: muted,
+                    parsed: parsed,
+                  ),
+                ),
+                if (role == SlideRole.cta)
+                  _CtaSignature(
+                    name: identity.name,
+                    handle: identity.handle,
+                    theme: theme,
+                    muted: muted,
+                    avatarPath: avatarPath,
+                    avatarInitials: avatarInitials,
+                    avatarColor: avatarColor,
+                  ),
+              ],
             ),
           ),
         ),
@@ -442,11 +528,15 @@ class _PaginationBadge extends StatelessWidget {
 }
 
 /// Prose via [MarkdownCardContent], fenced code via [SyntaxCardBlock].
-/// Typography scales from the full slide length; FittedBox is the clip guard.
+///
+/// Length buckets set the type scale. [FittedBox] is the last guard so a
+/// long slide scales down instead of clipping. Header and footer live
+/// outside this expanded slot, so brand marks stay inside the card margins.
 class _SlideBody extends StatelessWidget {
   const _SlideBody({
     required this.text,
     required this.theme,
+    required this.role,
     required this.showCodeChrome,
     required this.emptyColor,
     this.chromeTitle,
@@ -455,6 +545,7 @@ class _SlideBody extends StatelessWidget {
 
   final String text;
   final CardThemeConfig theme;
+  final SlideRole role;
   final bool showCodeChrome;
   final String? chromeTitle;
   final Color emptyColor;
@@ -463,23 +554,27 @@ class _SlideBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scale = CardLayout.fontScaleFor(text);
+    final tighten = CardLayout.tightensLineHeight(text);
+    final align = role == SlideRole.cover ? TextAlign.center : TextAlign.left;
+    final headingScale =
+        role == SlideRole.cover ? CardLayout.coverHeadingScale : 1.0;
     final segments = parsed ?? const CodeBlockParser().parse(text);
 
     if (text.trim().isEmpty) {
-      return Center(
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'Start writing…',
-            key: const Key('card-body-text'),
-            textAlign: TextAlign.left,
-            style: cardTypeStyle(
-              fontFamily: theme.fontFamily,
-              color: emptyColor,
-              fontSize: CardMarkdownStyles.bodySize * scale,
-              fontWeight: FontWeight.w500,
-              height: 1.55,
-            ),
+      return Align(
+        alignment: align == TextAlign.center
+            ? Alignment.center
+            : Alignment.centerLeft,
+        child: Text(
+          'Start writing…',
+          key: const Key('card-body-text'),
+          textAlign: align,
+          style: cardTypeStyle(
+            fontFamily: theme.fontFamily,
+            color: emptyColor,
+            fontSize: CardLayout.clampFontSize(CardMarkdownStyles.bodySize * scale),
+            fontWeight: FontWeight.w500,
+            height: CardLayout.lineHeightFor(text),
           ),
         ),
       );
@@ -495,6 +590,9 @@ class _SlideBody extends StatelessWidget {
               theme: theme,
               fontScale: scale,
               fontFamily: theme.fontFamily,
+              textAlign: align,
+              headingScale: headingScale,
+              tightenLineHeight: tighten,
             ),
           );
         } else {
@@ -510,6 +608,9 @@ class _SlideBody extends StatelessWidget {
                     theme: theme,
                     fontScale: scale,
                     fontFamily: theme.fontFamily,
+                    textAlign: align,
+                    headingScale: headingScale,
+                    tightenLineHeight: tighten,
                   ),
                 ),
               );
@@ -542,7 +643,7 @@ class _SlideBody extends StatelessWidget {
                 child: Column(
                   key: const Key('card-body-text'),
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: children,
                 ),
               ),
@@ -565,6 +666,210 @@ class _TrafficDot extends StatelessWidget {
       width: 20,
       height: 20,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
+class _CoverEyebrow extends StatelessWidget {
+  const _CoverEyebrow({required this.text, required this.theme});
+
+  final String text;
+  final CardThemeConfig theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = SlideRoles.coverEyebrowFor(text);
+    return Text(
+      label,
+      key: const Key('card-cover-eyebrow'),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: cardTypeStyle(
+        fontFamily: theme.fontFamily,
+        color: theme.accentColor,
+        fontSize: 26,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.6,
+        height: 1.2,
+      ),
+    );
+  }
+}
+
+class _CtaSignature extends StatelessWidget {
+  const _CtaSignature({
+    required this.name,
+    required this.handle,
+    required this.theme,
+    required this.muted,
+    required this.avatarPath,
+    required this.avatarInitials,
+    required this.avatarColor,
+  });
+
+  final String? name;
+  final String? handle;
+  final CardThemeConfig theme;
+  final Color muted;
+  final String? avatarPath;
+  final String avatarInitials;
+  final Color avatarColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasName = name != null && name!.isNotEmpty;
+    final tagline = (handle != null && handle!.isNotEmpty) ? handle! : null;
+    final initials = avatarInitials.trim().isEmpty ? '?' : avatarInitials.trim();
+
+    return Padding(
+      key: const Key('card-cta-signature'),
+      padding: const EdgeInsets.only(top: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _CreatorAvatar(
+                path: avatarPath,
+                initials: initials,
+                color: avatarColor,
+                textColor: theme.textColor,
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  key: const Key('card-brand-slot'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hasName)
+                      Text(
+                        name!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: cardTypeStyle(
+                          fontFamily: theme.fontFamily,
+                          color: theme.textColor,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                    if (tagline != null)
+                      Padding(
+                        padding: EdgeInsets.only(top: hasName ? 6 : 0),
+                        child: Text(
+                          tagline,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: cardTypeStyle(
+                            fontFamily: theme.fontFamily,
+                            color: muted,
+                            fontSize: CardLayout.authorHandleSize,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Text(
+            SlideRoles.ctaPrompt,
+            key: const Key('card-cta-prompt'),
+            textAlign: TextAlign.center,
+            style: cardTypeStyle(
+              fontFamily: theme.fontFamily,
+              color: theme.accentColor,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CreatorAvatar extends StatelessWidget {
+  const _CreatorAvatar({
+    required this.path,
+    required this.initials,
+    required this.color,
+    required this.textColor,
+  });
+
+  final String? path;
+  final String initials;
+  final Color color;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 88.0;
+    final filePath = path?.trim();
+    final hasFile = filePath != null && filePath.isNotEmpty;
+
+    return SizedBox(
+      key: const Key('card-cta-avatar'),
+      width: size,
+      height: size,
+      child: ClipOval(
+        child: hasFile
+            ? Image.file(
+                File(filePath),
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _InitialsDisc(
+                  initials: initials,
+                  color: color,
+                  textColor: textColor,
+                ),
+              )
+            : _InitialsDisc(
+                initials: initials,
+                color: color,
+                textColor: textColor,
+              ),
+      ),
+    );
+  }
+}
+
+class _InitialsDisc extends StatelessWidget {
+  const _InitialsDisc({
+    required this.initials,
+    required this.color,
+    required this.textColor,
+  });
+
+  final String initials;
+  final Color color;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: color,
+      child: Center(
+        child: Text(
+          initials,
+          maxLines: 1,
+          style: cardTypeStyle(
+            fontFamily: CardThemeConfig.fontInter,
+            color: textColor,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            height: 1.1,
+          ),
+        ),
+      ),
     );
   }
 }

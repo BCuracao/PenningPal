@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/slide_role.dart';
 import '../templates/card_theme_config.dart';
 import 'card_canvas.dart';
 
@@ -18,6 +19,10 @@ class CardInspectModal extends StatefulWidget {
     this.authorHandle,
     this.currentSlideIndex,
     this.totalSlides,
+    this.slideRole,
+    this.avatarPath,
+    this.avatarInitials = '',
+    this.avatarColor,
   });
 
   final String text;
@@ -28,6 +33,10 @@ class CardInspectModal extends StatefulWidget {
   final String? authorHandle;
   final int? currentSlideIndex;
   final int? totalSlides;
+  final SlideRole? slideRole;
+  final String? avatarPath;
+  final String avatarInitials;
+  final Color? avatarColor;
 
   /// Opens a dimmed full-screen inspect route.
   static Future<void> show({
@@ -40,6 +49,10 @@ class CardInspectModal extends StatefulWidget {
     String? authorHandle,
     int? currentSlideIndex,
     int? totalSlides,
+    SlideRole? slideRole,
+    String? avatarPath,
+    String avatarInitials = '',
+    Color? avatarColor,
   }) {
     return showGeneralDialog<void>(
       context: context,
@@ -59,6 +72,10 @@ class CardInspectModal extends StatefulWidget {
             authorHandle: authorHandle,
             currentSlideIndex: currentSlideIndex,
             totalSlides: totalSlides,
+            slideRole: slideRole,
+            avatarPath: avatarPath,
+            avatarInitials: avatarInitials,
+            avatarColor: avatarColor,
           ),
         );
       },
@@ -122,6 +139,10 @@ class _CardInspectModalState extends State<CardInspectModal> {
                             isProPurchased: widget.isProPurchased,
                             currentSlideIndex: widget.currentSlideIndex,
                             totalSlides: widget.totalSlides,
+                            slideRole: widget.slideRole,
+                            avatarPath: widget.avatarPath,
+                            avatarInitials: widget.avatarInitials,
+                            avatarColor: widget.avatarColor,
                           ),
                         ),
                       ),

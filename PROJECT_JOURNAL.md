@@ -35,6 +35,7 @@
 - [x] Task 4.3: Generate and configure PenningPal 1024x1024 launcher icons and adaptive assets.
 - [x] Task 4.4: Production RevenueCat StoreKit 2 integration, dynamic localized price, strict Pro gating, and local StoreKit configuration.
 - [x] Phase 1: Platform character HUD, LinkedIn fold warning, framework templates, and native share sheet.
+- [x] Phase 4.2 (Phase 3): Specialized slide roles (Cover/Body/CTA), auto-fit font scaling, and thumbnail drag-and-drop reorder strip.
 
 ## Session Log
 <!-- Agents append timestamped summaries of completed work here -->
@@ -343,4 +344,13 @@
 - The folder button opens the drafts drawer: search (title or body), chips for All / Drafts / Ready / Published, New Draft, relative time, and slide count. The open draft is highlighted. Swipe or the row menu can duplicate (`Title (Copy)`), change status, or delete. Delete shows an Undo snackbar. The app bar pill sets Draft, Ready, or Published on the open draft.
 - Tests: `flutter analyze lib test` clean; `flutter test` 315 passed. New coverage is `test/features/multi_draft_engine_test.dart`.
 - Modified: `lib/features/scratchpad/models/draft_item.dart`, `lib/features/scratchpad/storage/draft_storage.dart`, `lib/core/persistence/draft_storage.dart`, `lib/features/scratchpad/state/{draft_providers,draft_list_notifier,scratchpad_notifier,scratchpad_state}.dart`, `lib/features/scratchpad/presentation/{scratchpad_screen,drafts_drawer}.dart`, `lib/features/scratchpad/presentation/widgets/drafts_drawer.dart`, `test/features/multi_draft_engine_test.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.
+
+### 2026-10-05 — Phase 3: Carousel layouts and canvas intelligence
+- `SlideRole` (`cover`, `body`, `cta`) auto-detects from position: one slide is body; the first slide of a multi-slide deck is cover; the last slide is CTA when the deck has at least two slides. The exporter’s Cover | Body | CTA control overrides the selected slide, and that choice follows the slide through reorder, duplicate, and delete.
+- Cover cards center the copy, enlarge headings (1.2× on top of the length scale), and paint a `SWIPE »` eyebrow, or the opening heading when it is short enough to read as a topic. Body cards stay left-aligned with the `N / M` index badge. CTA cards add the creator avatar, handle, and “Found this valuable? Repost & Follow”.
+- `CardLayout.fontScaleFor` is now 1.15× under 120 characters, 1.0× through 280, 0.85× through 450, and 0.75× after that, with tighter line height past 450. Canvas glyphs are clamped at 12px. The body stays in the expanded slot between the header and the watermark so those marks are not pushed outside the card.
+- The thumbnail strip under the preview selects a slide, reorders with a horizontal `ReorderableListView`, and can duplicate, delete, or append a page. Edits are written back joined on `\n---\n` and saved to the active draft. The scratchpad reloads its Quill document when that buffer changes from outside the editor.
+- Tests: `flutter analyze lib test` clean; `flutter test` 325 passed. New coverage is `test/features/carousel_intelligence_test.dart`.
+- Modified: `lib/features/exporter/models/{slide_role,carousel_markdown}.dart`, `lib/features/exporter/templates/card_theme_config.dart`, `lib/features/exporter/presentation/{card_canvas,markdown_card_content,card_exporter_screen,card_inspect_modal}.dart`, `lib/features/exporter/presentation/widgets/slide_thumbnail_strip.dart`, `lib/features/exporter/render/carousel_batch_exporter.dart`, `lib/features/scratchpad/presentation/scratchpad_screen.dart`, `test/features/{carousel_intelligence_test,card_typography_test,carousel_deck_test,card_rasterizer_test}.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.

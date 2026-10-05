@@ -34,17 +34,18 @@ class CardRasterizer {
     if (boundary == null) return null;
 
     if (await _needsPaint(boundary)) {
-      await _waitForFrame();
-      boundary = boundaryKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      await waitForNextFrame();
+      boundary =
+          boundaryKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return null;
     }
 
     ui.Image? image;
     try {
-      image = await boundary.toImage(pixelRatio: pixelRatio).timeout(
-        const Duration(seconds: 8),
-      );
+      image = await boundary
+          .toImage(pixelRatio: pixelRatio)
+          .timeout(const Duration(seconds: 8));
       final byteData = await image
           .toByteData(format: ui.ImageByteFormat.png)
           .timeout(const Duration(seconds: 8));
@@ -69,14 +70,21 @@ class CardRasterizer {
     return needsPaint;
   }
 
-  Future<void> _waitForFrame() async {
+  /// Waits until the next frame has been built, laid out, and painted.
+  ///
+  /// Bailing out with a zero delay while the scheduler is idle returns before
+  /// that frame. Carousel export would then snapshot the previous slide once
+  /// for every page. Always schedule a frame and resume from its post-frame
+  /// callback.
+  static Future<void> waitForNextFrame() async {
     final binding = SchedulerBinding.instance;
-    if (binding.schedulerPhase == SchedulerPhase.idle) {
-      await Future<void>.delayed(Duration.zero);
-      return;
-    }
+    final completer = Completer<void>();
+    binding.addPostFrameCallback((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    binding.scheduleFrame();
     try {
-      await binding.endOfFrame.timeout(const Duration(milliseconds: 250));
+      await completer.future.timeout(const Duration(milliseconds: 250));
     } on TimeoutException {
       // No frame landed; the caller will attempt capture anyway.
     }

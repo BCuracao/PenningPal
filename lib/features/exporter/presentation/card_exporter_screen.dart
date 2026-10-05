@@ -12,7 +12,10 @@ import '../../../core/persistence/profile_storage.dart';
 import '../../../core/persistence/settings_storage.dart';
 import '../../paywall/paywall_bottom_sheet.dart';
 import '../../paywall/paywall_provider.dart';
+import '../../scratchpad/state/scratchpad_notifier.dart';
 import '../models/carousel_deck.dart';
+import '../models/carousel_markdown.dart';
+import '../models/slide_role.dart';
 import '../render/card_export_service.dart';
 import '../render/card_rasterizer.dart';
 import '../render/carousel_batch_exporter.dart';
@@ -25,6 +28,7 @@ import 'brand_profile_sheet.dart';
 import 'card_canvas.dart';
 import 'card_customizer_controls.dart';
 import 'card_inspect_modal.dart';
+import 'widgets/slide_thumbnail_strip.dart';
 
 /// Live preview + rasterize flow for visual quote / carousel cards.
 class CardExporterScreen extends ConsumerStatefulWidget {
@@ -40,7 +44,8 @@ class CardExporterScreen extends ConsumerStatefulWidget {
     this.shareExportService = const ShareExportService(),
   });
 
-  /// Current scratchpad draft. Transformations are not written back.
+  /// Scratchpad draft shown on the canvas. Structural slide edits write this
+  /// buffer back to the active draft.
   final String text;
 
   /// Optional display name shown in the card header.
@@ -68,7 +73,9 @@ class CardExporterScreen extends ConsumerStatefulWidget {
 class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   final GlobalKey _canvasKey = GlobalKey();
   final Map<int, GlobalKey> _previewKeys = <int, GlobalKey>{};
+  final Map<int, SlideRole> _roleOverrides = <int, SlideRole>{};
   late final PageController _pageController;
+  late String _markdown;
 
   CardAspectRatio _aspect = CardAspectRatio.square;
   CardThemeConfig _theme = CardPresets.minimalClean;
@@ -83,11 +90,11 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   @visibleForTesting
   Uint8List? get debugLastPngBytes => _lastPngBytes;
 
-  CarouselDeck get _deck => CarouselDeck.fromMarkdown(widget.text);
+  CarouselDeck get _deck => CarouselDeck.fromMarkdown(_markdown);
 
   String get _meterText {
     final deck = _deck;
-    if (!deck.isCarousel) return widget.text;
+    if (!deck.isCarousel) return _markdown;
     return deck.slideAt(_slideIndex);
   }
 
@@ -102,7 +109,18 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   @override
   void initState() {
     super.initState();
+    _markdown = widget.text;
     _pageController = PageController();
+  }
+
+  @override
+  void didUpdateWidget(covariant CardExporterScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.text != oldWidget.text && widget.text != _markdown) {
+      _markdown = widget.text;
+      _roleOverrides.clear();
+      _slideIndex = 0;
+    }
   }
 
   @override
@@ -363,69 +381,214 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   GlobalKey _previewKeyFor(int index) =>
       _previewKeys.putIfAbsent(index, GlobalKey.new);
 
+  SlideRole _roleAt(int index) {
+    final total = _deck.totalSlides;
+    final safe = total <= 1 ? 0 : index.clamp(0, total - 1);
+    return SlideRoles.resolve(
+      override: _roleOverrides[safe],
+      index: safe,
+      totalSlides: total,
+    );
+  }
+
+  ({String? path, String initials, Color color}) get _creatorAvatar {
+    final settings = ref.read(cardSettingsProvider);
+    final profile = settings.activeProfile;
+    final preset =
+        (profile?.avatarPreset ?? settings.avatarPreset) %
+            brandAvatarColors.length;
+    return (
+      path: profile?.avatarPath ?? settings.avatarPath,
+      initials: profile?.initials ?? settings.initials,
+      color: brandAvatarColors[preset],
+    );
+  }
+
   Widget _buildPreview(bool isPro) {
     final deck = _deck;
+    final avatar = _creatorAvatar;
+    final safeIndex = deck.totalSlides <= 1
+        ? 0
+        : _slideIndex.clamp(0, deck.totalSlides - 1);
+
+    final Widget preview;
     if (!deck.isCarousel) {
-      return _ScaledPreview(
+      preview = _ScaledPreview(
         canvasKey: _canvasKey,
-        text: widget.text,
+        text: deck.slideAt(0),
         aspectRatio: _aspect,
         theme: _theme,
         author: _authorName,
         authorHandle: _authorHandle,
         isProPurchased: isPro,
-        onInspect: _isBusy ? null : () => unawaited(_openInspect(widget.text)),
+        slideRole: _roleAt(0),
+        avatarPath: avatar.path,
+        avatarInitials: avatar.initials,
+        avatarColor: avatar.color,
+        currentSlideIndex: 0,
+        totalSlides: deck.totalSlides,
+        onInspect: _isBusy ? null : () => unawaited(_openInspect(deck.slideAt(0))),
+      );
+    } else {
+      preview = PageView.builder(
+        key: const Key('carousel-page-view'),
+        controller: _pageController,
+        physics: _isBusy
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        itemCount: deck.totalSlides,
+        onPageChanged: (index) => setState(() => _slideIndex = index),
+        itemBuilder: (context, index) {
+          return _ScaledPreview(
+            canvasKey: _previewKeyFor(index),
+            text: deck.slideAt(index),
+            aspectRatio: _aspect,
+            theme: _theme,
+            author: _authorName,
+            authorHandle: _authorHandle,
+            isProPurchased: isPro,
+            slideRole: _roleAt(index),
+            avatarPath: avatar.path,
+            avatarInitials: avatar.initials,
+            avatarColor: avatar.color,
+            currentSlideIndex: index,
+            totalSlides: deck.totalSlides,
+            onInspect: _isBusy
+                ? null
+                : () => unawaited(_openInspect(deck.slideAt(index))),
+          );
+        },
       );
     }
 
     return Column(
       children: [
-        _CarouselBanner(
-          label: deck.slideOfLabel(_slideIndex),
-          onPrevious: _isBusy || _slideIndex <= 0
-              ? null
-              : () => unawaited(_goToPage(_slideIndex - 1)),
-          onNext: _isBusy || _slideIndex >= deck.totalSlides - 1
-              ? null
-              : () => unawaited(_goToPage(_slideIndex + 1)),
-        ),
-        Expanded(
-          child: PageView.builder(
-            key: const Key('carousel-page-view'),
-            controller: _pageController,
-            physics: _isBusy
-                ? const NeverScrollableScrollPhysics()
-                : const PageScrollPhysics(),
-            itemCount: deck.totalSlides,
-            onPageChanged: (index) => setState(() => _slideIndex = index),
-            itemBuilder: (context, index) {
-              return _ScaledPreview(
-                canvasKey: _previewKeyFor(index),
-                text: deck.slideAt(index),
-                aspectRatio: _aspect,
-                theme: _theme,
-                author: _authorName,
-                authorHandle: _authorHandle,
-                isProPurchased: isPro,
-                currentSlideIndex: index,
-                totalSlides: deck.totalSlides,
-                onInspect: _isBusy
-                    ? null
-                    : () => unawaited(_openInspect(deck.slideAt(index))),
-              );
-            },
+        if (deck.isCarousel)
+          _CarouselBanner(
+            label: deck.slideOfLabel(safeIndex),
+            onPrevious: _isBusy || safeIndex <= 0
+                ? null
+                : () => unawaited(_goToPage(safeIndex - 1)),
+            onNext: _isBusy || safeIndex >= deck.totalSlides - 1
+                ? null
+                : () => unawaited(_goToPage(safeIndex + 1)),
+          ),
+        Expanded(child: preview),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SlideRoleSelector(
+              role: _roleAt(safeIndex),
+              onChanged: _isBusy ? null : _setRole,
+            ),
           ),
         ),
-        _CarouselDots(
-          count: deck.totalSlides,
-          index: _slideIndex,
-          onSelected: _isBusy ? null : (index) => unawaited(_goToPage(index)),
+        SlideThumbnailStrip(
+          slides: deck.slides.isEmpty ? const [''] : deck.slides,
+          activeIndex: safeIndex,
+          enabled: !_isBusy,
+          onSelect: (index) => unawaited(_goToPage(index)),
+          onReorder: _reorderSlides,
+          onDuplicate: _duplicateSlide,
+          onDelete: _deleteSlide,
+          onAdd: _addSlide,
         ),
+        if (deck.isCarousel)
+          _CarouselDots(
+            count: deck.totalSlides,
+            index: safeIndex,
+            onSelected: _isBusy ? null : (index) => unawaited(_goToPage(index)),
+          ),
       ],
     );
   }
 
+  void _setRole(SlideRole role) {
+    setState(() => _roleOverrides[_slideIndex] = role);
+  }
+
+  void _reorderSlides(int oldIndex, int newIndex) {
+    final length = _deck.totalSlides;
+    final next = CarouselMarkdown.reorder(_markdown, oldIndex, newIndex);
+    final focus = SlideRoles.reorderDestination(oldIndex, newIndex, length);
+    final overrides = SlideRoles.remapAfterReorder(
+      _roleOverrides,
+      oldIndex,
+      newIndex,
+      length,
+    );
+    _commitMarkdown(next, focusIndex: focus, overrides: overrides);
+  }
+
+  void _duplicateSlide(int index) {
+    final length = _deck.totalSlides;
+    final next = CarouselMarkdown.duplicate(_markdown, index);
+    final overrides = SlideRoles.remapAfterDuplicate(
+      _roleOverrides,
+      index,
+      length,
+    );
+    _commitMarkdown(next, focusIndex: index + 1, overrides: overrides);
+  }
+
+  void _deleteSlide(int index) {
+    final length = _deck.totalSlides;
+    if (length <= 1) return;
+    final next = CarouselMarkdown.delete(_markdown, index);
+    final overrides = SlideRoles.remapAfterDelete(
+      _roleOverrides,
+      index,
+      length,
+    );
+    final focus = index >= length - 1 ? index - 1 : index;
+    _commitMarkdown(next, focusIndex: focus, overrides: overrides);
+  }
+
+  void _addSlide() {
+    final next = CarouselMarkdown.addSlide(_markdown);
+    final focus = CarouselDeck.fromMarkdown(next).totalSlides - 1;
+    _commitMarkdown(next, focusIndex: focus);
+  }
+
+  void _commitMarkdown(
+    String markdown, {
+    required int focusIndex,
+    Map<int, SlideRole>? overrides,
+  }) {
+    final deck = CarouselDeck.fromMarkdown(markdown);
+    final last = deck.totalSlides - 1;
+    final focus = last < 0 ? 0 : focusIndex.clamp(0, last);
+    if (_pageController.hasClients) {
+      final currentCount = _deck.totalSlides;
+      if (focus < currentCount && _pageController.page?.round() != focus) {
+        _pageController.jumpToPage(focus);
+      }
+    }
+    setState(() {
+      _markdown = markdown;
+      _slideIndex = focus;
+      if (overrides != null) {
+        _roleOverrides
+          ..clear()
+          ..addAll(overrides);
+      }
+    });
+    _syncActiveDraft(markdown);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pageController.hasClients) return;
+      final page = _pageController.page?.round();
+      if (page != focus) _pageController.jumpToPage(focus);
+    });
+  }
+
+  void _syncActiveDraft(String markdown) {
+    ref.read(scratchpadProvider.notifier).updateContent(markdown);
+  }
+
   Future<void> _openInspect(String text) {
+    final avatar = _creatorAvatar;
+    final deck = _deck;
     return CardInspectModal.show(
       context: context,
       text: text,
@@ -434,8 +597,12 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       isProPurchased: ref.read(canAccessProFeatureProvider),
       author: _authorName,
       authorHandle: _authorHandle,
-      currentSlideIndex: _deck.isCarousel ? _slideIndex : null,
-      totalSlides: _deck.isCarousel ? _deck.totalSlides : null,
+      currentSlideIndex: _slideIndex,
+      totalSlides: deck.totalSlides,
+      slideRole: _roleAt(_slideIndex),
+      avatarPath: avatar.path,
+      avatarInitials: avatar.initials,
+      avatarColor: avatar.color,
     );
   }
 
@@ -471,6 +638,12 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       context: context,
       author: _authorName,
       authorHandle: _authorHandle,
+      slideRoles: [
+        for (var i = 0; i < deck.totalSlides; i++) _roleAt(i),
+      ],
+      avatarPath: _creatorAvatar.path,
+      avatarInitials: _creatorAvatar.initials,
+      avatarColor: _creatorAvatar.color,
       onProgress: (current, total) {
         if (!mounted) return;
         setState(() {
@@ -859,6 +1032,10 @@ class _ScaledPreview extends StatelessWidget {
     this.authorHandle,
     this.currentSlideIndex,
     this.totalSlides,
+    this.slideRole,
+    this.avatarPath,
+    this.avatarInitials = '',
+    this.avatarColor,
     this.onInspect,
   });
 
@@ -871,6 +1048,10 @@ class _ScaledPreview extends StatelessWidget {
   final bool isProPurchased;
   final int? currentSlideIndex;
   final int? totalSlides;
+  final SlideRole? slideRole;
+  final String? avatarPath;
+  final String avatarInitials;
+  final Color? avatarColor;
   final VoidCallback? onInspect;
 
   @override
@@ -909,6 +1090,10 @@ class _ScaledPreview extends StatelessWidget {
                   isProPurchased: isProPurchased,
                   currentSlideIndex: currentSlideIndex,
                   totalSlides: totalSlides,
+                  slideRole: slideRole,
+                  avatarPath: avatarPath,
+                  avatarInitials: avatarInitials,
+                  avatarColor: avatarColor,
                 ),
               ),
             ),

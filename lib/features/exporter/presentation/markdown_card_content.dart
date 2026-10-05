@@ -15,12 +15,23 @@ class MarkdownCardContent extends StatelessWidget {
     required this.theme,
     required this.fontScale,
     required this.fontFamily,
+    this.textAlign = TextAlign.left,
+    this.headingScale = 1,
+    this.tightenLineHeight = false,
   });
 
   final String content;
   final CardThemeConfig theme;
   final double fontScale;
   final String fontFamily;
+  final TextAlign textAlign;
+
+  /// Extra multiplier applied only to H1–H3. Cover slides use this so the
+  /// headline outranks the body without leaving the length-based scale.
+  final double headingScale;
+
+  /// Dense slides (>450 characters) tighten leading so wrapped lines stay on-canvas.
+  final bool tightenLineHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +39,8 @@ class MarkdownCardContent extends StatelessWidget {
       theme: theme,
       fontScale: fontScale,
       fontFamily: fontFamily,
+      headingScale: headingScale,
+      tightenLineHeight: tightenLineHeight,
     );
     final blocks = _parseCardMarkdown(content);
     if (blocks.isEmpty) {
@@ -46,7 +59,7 @@ class MarkdownCardContent extends StatelessWidget {
               padding: EdgeInsets.only(
                 bottom: i == blocks.length - 1 ? 0 : _gapAfter(blocks[i]),
               ),
-              child: blocks[i].build(styles),
+              child: blocks[i].build(styles, textAlign),
             ),
         ],
       ),
@@ -113,39 +126,54 @@ class CardMarkdownStyles {
     required CardThemeConfig theme,
     required double fontScale,
     required String fontFamily,
+    double headingScale = 1,
+    bool tightenLineHeight = false,
   }) {
     final scale = fontScale <= 0 ? 1.0 : fontScale;
+    final headings = headingScale <= 0 ? 1.0 : headingScale;
     final text = theme.textColor;
+    final bodyHeight = tightenLineHeight
+        ? CardLayout.tightLineHeight
+        : CardLayout.relaxedLineHeight;
+    double leading(double relaxed) {
+      if (!tightenLineHeight) return relaxed;
+      return relaxed * (CardLayout.tightLineHeight / CardLayout.relaxedLineHeight);
+    }
+
+    double sized(double base, {bool heading = false}) {
+      return CardLayout.clampFontSize(base * scale * (heading ? headings : 1));
+    }
+
     final paragraph = cardTypeStyle(
       fontFamily: fontFamily,
       color: text,
-      fontSize: bodySize * scale,
+      fontSize: sized(bodySize),
       fontWeight: FontWeight.w400,
-      height: 1.55,
+      height: bodyHeight,
     );
     return CardMarkdownStyles(
       h1: cardTypeStyle(
         fontFamily: fontFamily,
         color: text,
-        fontSize: h1Size * scale,
+        fontSize: sized(h1Size, heading: true),
         fontWeight: FontWeight.w800,
-        height: 1.2,
+        height: leading(1.2),
         letterSpacing: -0.8,
       ),
       h2: cardTypeStyle(
         fontFamily: fontFamily,
         color: text,
-        fontSize: h2Size * scale,
+        fontSize: sized(h2Size, heading: true),
         fontWeight: FontWeight.w700,
-        height: 1.25,
+        height: leading(1.25),
         letterSpacing: -0.5,
       ),
       h3: cardTypeStyle(
         fontFamily: fontFamily,
         color: text,
-        fontSize: h3Size * scale,
+        fontSize: sized(h3Size, heading: true),
         fontWeight: FontWeight.w600,
-        height: 1.3,
+        height: leading(1.3),
       ),
       paragraph: paragraph,
       strong: paragraph.copyWith(
@@ -156,19 +184,19 @@ class CardMarkdownStyles {
       quote: cardTypeStyle(
         fontFamily: fontFamily,
         color: text.withValues(alpha: 0.78),
-        fontSize: quoteSize * scale,
+        fontSize: sized(quoteSize),
         fontWeight: FontWeight.w400,
-        height: 1.45,
+        height: leading(1.45),
         fontStyle: FontStyle.italic,
       ),
       listItem: paragraph,
-      bullet: paragraph.copyWith(fontWeight: FontWeight.w600, height: 1.55),
+      bullet: paragraph.copyWith(fontWeight: FontWeight.w600, height: bodyHeight),
       inlineCode: cardTypeStyle(
         fontFamily: CardThemeConfig.fontJetBrainsMono,
         color: text,
-        fontSize: codeSize * scale,
+        fontSize: sized(codeSize),
         fontWeight: FontWeight.w500,
-        height: 1.4,
+        height: leading(1.4),
       ),
       inlineCodeBackground: text.withValues(alpha: 0.08),
       accentColor: theme.accentColor,
@@ -185,7 +213,7 @@ List<_CardMdBlock> _parseCardMarkdown(String markdown) {
 sealed class _CardMdBlock {
   const _CardMdBlock();
 
-  Widget build(CardMarkdownStyles styles);
+  Widget build(CardMarkdownStyles styles, TextAlign textAlign);
 }
 
 final class _HeadingBlock extends _CardMdBlock {
@@ -195,7 +223,7 @@ final class _HeadingBlock extends _CardMdBlock {
   final String text;
 
   @override
-  Widget build(CardMarkdownStyles styles) {
+  Widget build(CardMarkdownStyles styles, TextAlign textAlign) {
     final style = switch (level) {
       1 => styles.h1,
       2 => styles.h2,
@@ -203,7 +231,7 @@ final class _HeadingBlock extends _CardMdBlock {
     };
     return Text.rich(
       TextSpan(style: style, children: _inlineSpans(text, styles)),
-      textAlign: TextAlign.left,
+      textAlign: textAlign,
     );
   }
 }
@@ -214,14 +242,14 @@ final class _ParagraphBlock extends _CardMdBlock {
   final List<String> lines;
 
   @override
-  Widget build(CardMarkdownStyles styles) {
+  Widget build(CardMarkdownStyles styles, TextAlign textAlign) {
     final joined = lines.join('\n');
     return Text.rich(
       TextSpan(
         style: styles.paragraph,
         children: _inlineSpans(joined, styles),
       ),
-      textAlign: TextAlign.left,
+      textAlign: textAlign,
     );
   }
 }
@@ -232,7 +260,7 @@ final class _QuoteBlock extends _CardMdBlock {
   final List<String> lines;
 
   @override
-  Widget build(CardMarkdownStyles styles) {
+  Widget build(CardMarkdownStyles styles, TextAlign textAlign) {
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(
@@ -253,7 +281,7 @@ final class _QuoteBlock extends _CardMdBlock {
             style: styles.quote,
             children: _inlineSpans(lines.join('\n'), styles),
           ),
-          textAlign: TextAlign.left,
+          textAlign: textAlign,
         ),
       ),
     );
@@ -266,9 +294,11 @@ final class _ListBlock extends _CardMdBlock {
   final List<String> items;
 
   @override
-  Widget build(CardMarkdownStyles styles) {
+  Widget build(CardMarkdownStyles styles, TextAlign textAlign) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: textAlign == TextAlign.center
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < items.length; i++)
@@ -291,7 +321,7 @@ final class _ListBlock extends _CardMdBlock {
                       style: styles.listItem,
                       children: _inlineSpans(items[i], styles),
                     ),
-                    textAlign: TextAlign.left,
+                    textAlign: textAlign,
                   ),
                 ),
               ],
@@ -550,7 +580,7 @@ TextStyle cardTypeStyle({
 }) {
   final base = TextStyle(
     color: color,
-    fontSize: fontSize,
+    fontSize: CardLayout.clampFontSize(fontSize),
     fontWeight: fontWeight,
     height: height,
     letterSpacing: letterSpacing,

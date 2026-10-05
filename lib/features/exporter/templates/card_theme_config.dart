@@ -439,33 +439,55 @@ abstract final class CardLayout {
   static const double authorHandleSize = 26;
   static const double watermarkSize = 24;
 
-  static const double punchyScale = 1.35;
-  static const double standardScale = 1.1;
-  static const double longFormScale = 0.95;
-  static const double denseScale = 0.82;
+  /// Cover headlines sit above the length-based scale so the hook reads first.
+  static const double coverHeadingScale = 1.2;
 
-  static const int punchyMaxChars = 140;
-  static const int standardMaxChars = 350;
-  static const int longFormMaxChars = 700;
+  /// Floor for any canvas glyph. Length scaling never asks for less than this.
+  static const double minFontSize = 12;
+
+  static const double hookScale = 1.15;
+  static const double baselineScale = 1.0;
+  static const double compactScale = 0.85;
+  static const double denseScale = 0.75;
+
+  static const int hookMaxChars = 120;
+  static const int baselineMaxChars = 280;
+  static const int compactMaxChars = 450;
+
+  static const double relaxedLineHeight = 1.55;
+  static const double tightLineHeight = 1.32;
 
   static double contentWidth(CardAspectRatio ratio) =>
       ratio.width - (padding * 2);
 
   /// Dynamic type multiplier from slide character length.
   ///
-  /// Punchy one-liners scale up so they fill the canvas; long-form copy
-  /// scales down but never below [denseScale] so type stays legible.
+  /// Short hooks scale up. Longer copy steps down through [denseScale].
+  /// The result always stays inside 0.75×–1.15×. Callers still clamp the
+  /// painted size with [clampFontSize] so glyphs never drop under 12px.
   static double fontScaleFor(String text) {
     final length = text.trim().length;
-    if (length < punchyMaxChars) return punchyScale;
-    if (length < standardMaxChars) return standardScale;
-    if (length <= longFormMaxChars) return longFormScale;
+    if (length < hookMaxChars) return hookScale;
+    if (length <= baselineMaxChars) return baselineScale;
+    if (length <= compactMaxChars) return compactScale;
     return denseScale;
   }
 
+  /// True when [text] is past [compactMaxChars] and line height should tighten.
+  static bool tightensLineHeight(String text) =>
+      text.trim().length > compactMaxChars;
+
+  /// Body line height for [text]. Dense slides use [tightLineHeight].
+  static double lineHeightFor(String text) =>
+      tightensLineHeight(text) ? tightLineHeight : relaxedLineHeight;
+
+  /// Never paint a canvas glyph smaller than [minFontSize].
+  static double clampFontSize(double size) =>
+      size < minFontSize ? minFontSize : size;
+
   static double fontSizeFor(String text, CardAspectRatio ratio) {
     final base = ratio == CardAspectRatio.square ? 38.0 : 42.0;
-    return base * fontScaleFor(text);
+    return clampFontSize(base * fontScaleFor(text));
   }
 }
 

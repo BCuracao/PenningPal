@@ -1,11 +1,10 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../models/carousel_deck.dart';
+import '../models/slide_role.dart';
 import '../presentation/card_canvas.dart';
 import '../templates/card_theme_config.dart';
 import 'card_rasterizer.dart';
@@ -33,11 +32,23 @@ class CarouselBatchExporter {
     required BuildContext context,
     String? author,
     String? authorHandle,
+    List<SlideRole>? slideRoles,
+    String? avatarPath,
+    String? avatarInitials,
+    Color? avatarColor,
     void Function(int current, int total)? onProgress,
   }) async {
+    SlideRole roleAt(int index) {
+      if (slideRoles != null && index >= 0 && index < slideRoles.length) {
+        return slideRoles[index];
+      }
+      return SlideRoles.detect(index: index, totalSlides: deck.totalSlides);
+    }
+
     final presenter = _SlidePresenter(
       text: deck.slideAt(0),
       index: 0,
+      role: roleAt(0),
     );
     final boundaryKey = GlobalKey();
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -61,6 +72,10 @@ class CarouselBatchExporter {
                   isProPurchased: isProPurchased,
                   currentSlideIndex: presenter.index,
                   totalSlides: deck.totalSlides,
+                  slideRole: presenter.role,
+                  avatarPath: avatarPath,
+                  avatarInitials: avatarInitials ?? '',
+                  avatarColor: avatarColor,
                 ),
               ),
             );
@@ -87,8 +102,9 @@ class CarouselBatchExporter {
         boundaryKey: boundaryKey,
         onProgress: onProgress,
         presentSlide: (index, text) async {
-          presenter.update(index, text);
-          // Two frames: one for the notifier rebuild, one for paint.
+          presenter.update(index, text, roleAt(index));
+          // First frame rebuilds the off-screen card. The second paints it
+          // so capture cannot reuse the previous slide's layer.
           await _waitForFrame();
           await _waitForFrame();
         },
@@ -125,30 +141,25 @@ class CarouselBatchExporter {
     return images;
   }
 
-  Future<void> _waitForFrame() async {
-    final binding = SchedulerBinding.instance;
-    if (binding.schedulerPhase == SchedulerPhase.idle) {
-      await Future<void>.delayed(Duration.zero);
-      return;
-    }
-    try {
-      await binding.endOfFrame.timeout(const Duration(milliseconds: 250));
-    } on TimeoutException {
-      await Future<void>.delayed(Duration.zero);
-    }
-  }
+  Future<void> _waitForFrame() => CardRasterizer.waitForNextFrame();
 }
 
 class _SlidePresenter extends ChangeNotifier {
-  _SlidePresenter({required this.text, required this.index});
+  _SlidePresenter({
+    required this.text,
+    required this.index,
+    required this.role,
+  });
 
   String text;
   int index;
+  SlideRole role;
 
-  void update(int newIndex, String newText) {
-    if (index == newIndex && text == newText) return;
+  void update(int newIndex, String newText, SlideRole newRole) {
+    if (index == newIndex && text == newText && role == newRole) return;
     index = newIndex;
     text = newText;
+    role = newRole;
     notifyListeners();
   }
 }
