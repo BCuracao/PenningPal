@@ -307,3 +307,11 @@
 - Export filenames (`clean_canvas_YYYYMMDD_HHMMSS.png`) and desktop binary names (`clean_canvas` on Linux, Windows, and macOS) are unchanged.
 - Modified: `pubspec.yaml`, `test/**/*.dart`, `PROJECT_JOURNAL.md`.
 - Follow-up: run `flutter pub get` after pulling so `.dart_tool/package_config.json` picks up the new name.
+
+### 2026-10-05 — TestFlight release IPA
+- `pubspec.yaml` already used `version: 1.0.0+1` (App Store version 1.0.0, build 1). Left unchanged.
+- Added `ITSAppUsesNonExemptEncryption` = `false` to `ios/Runner/Info.plist` so App Store Connect can skip the manual export-compliance prompt. `NSPhotoLibraryAddUsageDescription` was already present for card saves.
+- `flutter clean`, `flutter pub get`, and `flutter build ipa` succeeded. App Store IPA is `build/ios/ipa/PenningPal.ipa` (30MB). Xcode also wrote `build/ios/archive/Runner.xcarchive`.
+- Validation reported display name PenningPal, bundle `com.shoebillsoftware.penningpal`, deployment target 15.0, signed with team `Y6BQW63Q2S`.
+- Modified: `ios/Runner/Info.plist`, `PROJECT_JOURNAL.md`.
+- Follow-up: upload `PenningPal.ipa` with Transporter or `xcrun altool`; register the bundle ID and `pro_lifetime` in App Store Connect before TestFlight purchases.
