@@ -20,6 +20,7 @@
 - [x] Task 2.2: Add one-tap platform export actions (LinkedIn, X, Substack).
 - [x] Task 2.3: Implement visual keyboard formatting toolbar and real-time styled text controller.
 - [x] Task 2.4: Implement Multi-Draft Drawer, auto-titling, and App Settings.
+- [x] Phase 2: Multi-draft Hive engine, drawer UI, status tags, search & duplicate.
 - [x] Task 2.5: Upgrade Scratchpad to true WYSIWYG rich-text editor with zero visible Markdown tokens.
 - [x] Task 3.1: Implement `CardExportCanvas` with 1:1 and 9:16 aspect ratio templates.
 - [x] Task 3.2: Implement image save to gallery (`image_gallery_saver` or native share sheet).
@@ -326,3 +327,20 @@
 - Tests: `flutter analyze lib test` clean; `flutter test` 303 passed. New coverage is `test/features/scratchpad_powerups_test.dart` plus share-service cases in `test/features/card_export_service_test.dart`.
 - Modified: `lib/features/scratchpad/state/{platform_metrics,framework_templates}.dart`, `lib/features/scratchpad/presentation/{formatting_toolbar,scratchpad_screen}.dart`, `lib/features/scratchpad/presentation/widgets/{platform_counter_hud,linkedin_fold_indicator,template_picker_bottom_sheet}.dart`, `lib/features/exporter/services/share_export_service.dart`, `lib/features/exporter/presentation/card_exporter_screen.dart`, exporter widget tests, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
 - Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases. Share PDF on a carousel is available from the Share button without the Pro sheet; Export LinkedIn PDF remains gated.
+
+### 2026-10-05 — Fix carousel share repeating the first slide
+- Share and Save both rasterize the deck in `CarouselBatchExporter` before writing files. The frame wait returned immediately whenever the scheduler was idle, so on a phone every capture snapped the first painted slide. A 3-slide share therefore sent slide 1 three times. File names were already unique; the PNG bytes were not.
+- `CardRasterizer.waitForNextFrame` now schedules a frame and resumes from its post-frame callback. Each slide is rebuilt and painted before `toImage`.
+- Current **Share** on a carousel still compiles those PNGs into one PDF. The previous build's **Share Carousel (N Slides)** attached N PNGs from the same capture path, so an older install shows the same bug.
+- Test: `renderDeck reads each slide body before capturing it`. `flutter analyze` on the touched files is clean; carousel, rasterizer, and export service tests passed (71).
+- Modified: `lib/features/exporter/render/{card_rasterizer,carousel_batch_exporter}.dart`, `test/features/carousel_deck_test.dart`, `PROJECT_JOURNAL.md`.
+- Follow-up: install a new build on the phone. The TestFlight IPA from earlier today does not include this fix.
+
+### 2026-10-05 — Phase 2: Multi-draft content engine
+- Each scratchpad document is a `DraftItem` in Hive `drafts_box`: UUID, inferred title, markdown, `DraftStatus` (`draft` / `ready` / `published`), `createdAt`, and `updatedAt`. Status pills are muted grey, amber/orange, and green.
+- Legacy split keys (`id` / `content` / `updatedAt`) still migrate. A `legacy_draft` string or map is imported only when the box has no drafts, so an existing workspace is not overwritten.
+- The editor stays bound to the active draft. Edits debounce to Hive at 400ms, refresh `updatedAt` and the inferred title, and keep the status. Switching drafts flushes that pending edit, then reloads the Quill document once so the caret is not reset on each keystroke.
+- The folder button opens the drafts drawer: search (title or body), chips for All / Drafts / Ready / Published, New Draft, relative time, and slide count. The open draft is highlighted. Swipe or the row menu can duplicate (`Title (Copy)`), change status, or delete. Delete shows an Undo snackbar. The app bar pill sets Draft, Ready, or Published on the open draft.
+- Tests: `flutter analyze lib test` clean; `flutter test` 315 passed. New coverage is `test/features/multi_draft_engine_test.dart`.
+- Modified: `lib/features/scratchpad/models/draft_item.dart`, `lib/features/scratchpad/storage/draft_storage.dart`, `lib/core/persistence/draft_storage.dart`, `lib/features/scratchpad/state/{draft_providers,draft_list_notifier,scratchpad_notifier,scratchpad_state}.dart`, `lib/features/scratchpad/presentation/{scratchpad_screen,drafts_drawer}.dart`, `lib/features/scratchpad/presentation/widgets/drafts_drawer.dart`, `test/features/multi_draft_engine_test.dart`, `docs/ARCHITECTURE.md`, `PROJECT_JOURNAL.md`.
+- Follow-up: still add the Google Play RevenueCat public key and register `pro_lifetime` before store purchases.

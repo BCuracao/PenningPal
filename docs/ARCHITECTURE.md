@@ -60,19 +60,21 @@ lib/
 * Implements fallback rules so unsupported characters (symbols, punctuation, non-Latin alphabets) bypass conversion safely without throwing exceptions.
 
 ### 4.2. Local Storage (`lib/core/persistence/`)
-* Hive box `drafts_box` stores one document per draft (never synced):
+* Hive box `drafts_box` stores one document per draft (never synced). `DraftItem` (`lib/features/scratchpad/models/draft_item.dart`) is the document:
   ```dart
-  class Draft {
-    final String id;
+  class DraftItem {
+    final String id; // UUID
     final String title;
-    final String content;
+    final String markdownContent;
+    final DraftStatus status; // draft | ready | published
     final DateTime createdAt;
     final DateTime updatedAt;
   }
   ```
-* Schema v2 keys are `draft:<id>` maps plus `__active_id__`. A one-time migration lifts the legacy single-document keys (`id` / `content` / `updatedAt`) into a real `Draft` so existing buffers are not lost.
-* Titles are inferred from the first non-empty line (heading / bold / plain text, markdown tokens stripped) and fall back to `"Untitled Draft"`.
-* UI updates are non-blocking: writes run asynchronously on a 400ms debounce timer against the active draft.
+* `DraftStatus` paints a muted grey **Draft** pill, an amber/orange **Ready** pill, or a green **Published** pill.
+* Schema v2 keys are `draft:<id>` maps plus `__active_id__`. A one-time migration lifts the legacy single-document keys (`id` / `content` / `updatedAt`) into a real `DraftItem`. If the box has no drafts and a `legacy_draft` string or map is present, that blob becomes the first draft so existing text is not lost.
+* Titles are inferred from the first non-empty line (heading / bold / plain text, markdown tokens stripped) and fall back to `"Untitled Draft"`. Duplicating a draft stores `"[Title] (Copy)"` with the same markdown and status.
+* UI updates are non-blocking: writes run asynchronously on a 400ms debounce timer against the active draft, refreshing `updatedAt` and the inferred title while keeping `status`.
 * Author profile (name, handle, avatar shortcut) lives in a separate on-device `settings_box` and is read by `cardSettingsProvider`.
 * Ghostwriter / brand personas live in `profiles_box` (`AuthorProfile`: id, name, handle, avatarPath, defaultFont, defaultThemeId). Free accounts may keep 1 profile; Pro unlocks unlimited switching. `cardSettingsProvider` selects, adds, edits, and deletes personas and stamps the active identity onto exported cards.
 
@@ -107,8 +109,8 @@ lib/
 * **Platform HUD**: `PlatformCounterHud` sits directly above the formatting toolbar. It shows word count, reading time (`wordCount / 200`, rounded up), and live meters for LinkedIn (3,000), X (280), and Threads (500). Green holds through 70% of a limit, amber through the limit, and red after it. Tapping a badge focuses that platform's meter. LinkedIn also flags an opening hook longer than 210 characters.
 * **LinkedIn fold**: `LinkedInFoldIndicator` under the editor marks the ~210-character mobile "see more" cutoff and lists line-break indexes. It does not insert a character into the Markdown buffer.
 * **Frameworks**: The toolbar opens `TemplatePickerBottomSheet` with Contrarian Hook, The 5-Step Breakdown, and The Story + Lesson. Each skeleton includes a `---` slide break. A blank draft inserts immediately. A draft that already has text asks to append or replace.
-* **Draft switching**: Changing the active draft replaces the Quill document from the stored Markdown and moves the caret to the end. Keystrokes do not reload the document, so the native cursor is not reset on each save.
-* **Drafts drawer**: Hamburger opens a local workspace (`DraftsDrawer`) with New Post, search, swipe-to-delete (confirmation required), and a Settings & Profile footer. Switching drafts flushes the 400ms debounce, then loads the selected buffer into the editor.
+* **Draft switching**: The editor binds to `activeDraftIdProvider`. Changing the active draft flushes the 400ms debounce, replaces the Quill document from the stored Markdown, and moves the caret to the end. Keystrokes do not reload the document, so the native cursor is not reset on each save. A status pill in the app bar sets `Draft`, `Ready`, or `Published` on the open draft without reloading the document.
+* **Drafts drawer**: The folder button opens a local workspace (`DraftsDrawer`) with New Draft, instant search (title or body), status chips (`All`, `Drafts`, `Ready`, `Published`), and a Settings & Profile footer. Each row shows the title, preview, status pill, relative time, and slide count. The open draft is highlighted. Swipe or the row menu can duplicate, change status, or delete; delete offers an Undo snackbar. Switching drafts flushes pending edits, then loads the selected buffer into the editor.
 * **Settings sheet**: Default author profile (synced with `cardSettingsProvider`), Pro status / restore purchases, and Terms / Privacy / version. Privacy Policy and Terms of Service are bundled markdown assets under `assets/legal/` and open in `LegalDocumentViewer` — no hosted web page is required.
 
 ### 4.6. Store Identity & Release

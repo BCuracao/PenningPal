@@ -5,11 +5,11 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/persistence/draft_storage.dart';
+import '../models/draft_item.dart';
 import '../render/markdown_quill_bridge.dart';
 import '../state/scratchpad_notifier.dart';
 import '../state/scratchpad_state.dart';
-import 'drafts_drawer.dart';
+import 'widgets/drafts_drawer.dart';
 import 'export_toolbar.dart';
 import 'formatting_toolbar.dart';
 import 'scratchpad_editor_styles.dart';
@@ -116,38 +116,47 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
         leading: IconButton(
           key: const Key('drafts-menu'),
           tooltip: 'Drafts',
-          icon: const Icon(Icons.menu),
+          icon: const Icon(Icons.folder_open_outlined),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
-        title: InkWell(
-          key: const Key('draft-title'),
-          onTap: _renameDraft,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    state.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 18,
-                      letterSpacing: -0.2,
-                    ),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            Flexible(
+              child: InkWell(
+                key: const Key('draft-title'),
+                onTap: _renameDraft,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          state.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 16,
+                        color: colors.onSurface.withValues(alpha: 0.45),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.edit_outlined,
-                  size: 16,
-                  color: colors.onSurface.withValues(alpha: 0.45),
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            _DraftStatusSelector(status: state.status),
+          ],
         ),
         centerTitle: false,
       ),
@@ -229,7 +238,7 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
             controller: controller,
             autofocus: true,
             decoration: const InputDecoration(
-              hintText: Draft.untitled,
+              hintText: DraftItem.untitled,
             ),
             onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
           ),
@@ -251,6 +260,37 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
     controller.dispose();
     if (next == null || !mounted) return;
     await ref.read(scratchpadProvider.notifier).renameActiveDraft(next);
+  }
+}
+
+class _DraftStatusSelector extends ConsumerWidget {
+  const _DraftStatusSelector({required this.status});
+
+  final DraftStatus status;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<DraftStatus>(
+      key: const Key('draft-status-pill'),
+      tooltip: 'Change status',
+      padding: EdgeInsets.zero,
+      initialValue: status,
+      onSelected: (next) {
+        final id = ref.read(scratchpadProvider).activeDraftId;
+        ref.read(scratchpadProvider.notifier).setDraftStatus(id, next);
+      },
+      itemBuilder: (context) {
+        return [
+          for (final value in DraftStatus.values)
+            PopupMenuItem<DraftStatus>(
+              key: Key('status-option-${value.name}'),
+              value: value,
+              child: Text(value.displayName),
+            ),
+        ];
+      },
+      child: DraftStatusBadge(status: status),
+    );
   }
 }
 
