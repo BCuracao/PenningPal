@@ -17,13 +17,7 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  final png = Uint8List.fromList([
-    ...CardRasterizer.pngSignature,
-    0,
-    1,
-    2,
-    3,
-  ]);
+  final png = Uint8List.fromList([...CardRasterizer.pngSignature, 0, 1, 2, 3]);
 
   group('CardExportService.copyImageToClipboard', () {
     test('writes PNG bytes and returns true', () async {
@@ -53,7 +47,9 @@ void main() {
 
       expect(await service.copyImageToClipboard(Uint8List(0)), isFalse);
       expect(
-        await service.copyImageToClipboard(Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8])),
+        await service.copyImageToClipboard(
+          Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]),
+        ),
         isFalse,
       );
       expect(calls, 0);
@@ -97,15 +93,12 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('Copy Card rasterizes the visible slide and copies PNG bytes',
-        (tester) async {
+    testWidgets('Copy Card rasterizes the visible slide and copies PNG bytes', (
+      tester,
+    ) async {
       final rasterizer = _FakeRasterizer();
       final export = RecordingClipboardExportService();
-      await pumpExporter(
-        tester,
-        rasterizer: rasterizer,
-        exportService: export,
-      );
+      await pumpExporter(tester, rasterizer: rasterizer, exportService: export);
 
       expect(find.text('Copy Card'), findsOneWidget);
       await tester.tap(find.byKey(const Key('copy-card-png')));
@@ -121,8 +114,9 @@ void main() {
       );
     });
 
-    testWidgets('Copy Card copies the currently visible carousel slide',
-        (tester) async {
+    testWidgets('Copy Card copies the currently visible carousel slide', (
+      tester,
+    ) async {
       final rasterizer = _FakeRasterizer();
       final export = RecordingClipboardExportService();
       await pumpExporter(
@@ -135,6 +129,7 @@ void main() {
       await tester.tap(find.byKey(const Key('carousel-next')));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.byKey(const Key('copy-card-png')));
       await tester.tap(find.byKey(const Key('copy-card-png')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
@@ -144,33 +139,35 @@ void main() {
       expect(export.shareAllCalls, isEmpty);
     });
 
-    testWidgets('tapping the card preview opens the pinch-to-zoom inspect modal',
-        (tester) async {
-      await pumpExporter(
-        tester,
-        rasterizer: _FakeRasterizer(),
-        exportService: RecordingClipboardExportService(),
-      );
+    testWidgets(
+      'tapping the card preview opens the pinch-to-zoom inspect modal',
+      (tester) async {
+        await pumpExporter(
+          tester,
+          rasterizer: _FakeRasterizer(),
+          exportService: RecordingClipboardExportService(),
+        );
 
-      expect(find.byType(CardInspectModal), findsNothing);
+        expect(find.byType(CardInspectModal), findsNothing);
 
-      await tester.tap(find.byKey(const Key('card-preview-tap')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('card-preview-tap')));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(CardInspectModal), findsOneWidget);
-      expect(find.byKey(const Key('card-inspect-modal')), findsOneWidget);
-      expect(find.byKey(const Key('card-inspect-viewer')), findsOneWidget);
+        expect(find.byType(CardInspectModal), findsOneWidget);
+        expect(find.byKey(const Key('card-inspect-modal')), findsOneWidget);
+        expect(find.byKey(const Key('card-inspect-viewer')), findsOneWidget);
 
-      final viewer = tester.widget<InteractiveViewer>(
-        find.byKey(const Key('card-inspect-viewer')),
-      );
-      expect(viewer.minScale, 0.8);
-      expect(viewer.maxScale, 4.0);
+        final viewer = tester.widget<InteractiveViewer>(
+          find.byKey(const Key('card-inspect-viewer')),
+        );
+        expect(viewer.minScale, 0.8);
+        expect(viewer.maxScale, 4.0);
 
-      await tester.tap(find.byKey(const Key('card-inspect-close')));
-      await tester.pumpAndSettle();
-      expect(find.byType(CardInspectModal), findsNothing);
-    });
+        await tester.tap(find.byKey(const Key('card-inspect-close')));
+        await tester.pumpAndSettle();
+        expect(find.byType(CardInspectModal), findsNothing);
+      },
+    );
 
     testWidgets('copy failure shows an error toast', (tester) async {
       final export = RecordingClipboardExportService(copyResult: false);

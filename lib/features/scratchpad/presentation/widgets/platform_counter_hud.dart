@@ -3,14 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../state/platform_metrics.dart';
 
-/// Compact platform meters docked directly above the formatting toolbar.
+/// Single-line platform meter docked above the formatting toolbar.
 ///
-/// Tapping a badge makes that network the primary limit shown underneath.
+/// The left pill is the active limit (`LinkedIn 120/3000`). Tap it to cycle
+/// LinkedIn, X, and Threads. The right side is word count, reading time, and
+/// a fold dot: green at or under 210 characters, amber past that.
 class PlatformCounterHud extends StatefulWidget {
-  const PlatformCounterHud({
-    super.key,
-    required this.markdown,
-  });
+  const PlatformCounterHud({super.key, required this.markdown});
 
   final String markdown;
 
@@ -21,51 +20,58 @@ class PlatformCounterHud extends StatefulWidget {
 class _PlatformCounterHudState extends State<PlatformCounterHud> {
   SocialPlatform _focus = SocialPlatform.linkedIn;
 
+  void _cyclePlatform() {
+    const order = SocialPlatform.values;
+    final next = (order.indexOf(_focus) + 1) % order.length;
+    setState(() => _focus = order[next]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final metrics = PlatformMetrics.analyze(widget.markdown);
-    final colors = Theme.of(context).colorScheme;
     final focus = metrics.limitFor(_focus);
+    final colors = Theme.of(context).colorScheme;
     final muted = colors.onSurface.withValues(alpha: 0.55);
+    final withinFold =
+        metrics.fold.hookLength <= PlatformMetrics.linkedInFoldThreshold;
+    final words = metrics.wordCount == 1 ? 'word' : 'words';
 
     return Material(
       key: const Key('platform-counter-hud'),
       color: colors.surfaceContainerLowest,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Row(
           children: [
-            SizedBox(
-              height: 36,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _StatsChip(metrics: metrics, color: muted),
-                  const SizedBox(width: 8),
-                  for (final platform in SocialPlatform.values) ...[
-                    _PlatformBadge(
-                      platform: platform,
-                      snapshot: metrics.limitFor(platform),
-                      selected: platform == _focus,
-                      showHookWarning: platform == SocialPlatform.linkedIn &&
-                          metrics.fold.hookExceedsFold,
-                      onTap: () => setState(() => _focus = platform),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                ],
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _LimitPill(
+                  platform: _focus,
+                  snapshot: focus,
+                  onTap: _cyclePlatform,
+                ),
               ),
             ),
-            const SizedBox(height: 6),
-            _FocusMeter(
-              platform: _focus,
-              snapshot: focus,
-              hookWarning: _focus == SocialPlatform.linkedIn &&
-                  metrics.fold.hookExceedsFold,
-              hookLength: metrics.fold.hookLength,
+            const SizedBox(width: 8),
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${metrics.wordCount} $words · ${metrics.readMinutes} min',
+                  key: const Key('hud-word-count'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: muted,
+                  ),
+                ),
+              ),
             ),
+            const SizedBox(width: 8),
+            _FoldDot(withinFold: withinFold),
           ],
         ),
       ),
@@ -73,228 +79,87 @@ class _PlatformCounterHudState extends State<PlatformCounterHud> {
   }
 }
 
-class _StatsChip extends StatelessWidget {
-  const _StatsChip({required this.metrics, required this.color});
-
-  final PlatformMetrics metrics;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final words = metrics.wordCount == 1 ? 'word' : 'words';
-    return Center(
-      child: Text(
-        '${metrics.wordCount} $words · ${metrics.readMinutes} min',
-        key: const Key('hud-word-count'),
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-class _PlatformBadge extends StatelessWidget {
-  const _PlatformBadge({
+class _LimitPill extends StatelessWidget {
+  const _LimitPill({
     required this.platform,
     required this.snapshot,
-    required this.selected,
-    required this.showHookWarning,
     required this.onTap,
   });
 
   final SocialPlatform platform;
   final PlatformLimitSnapshot snapshot;
-  final bool selected;
-  final bool showHookWarning;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final tone = _toneColor(snapshot.tone);
-    final label = _shortLabel(platform);
+    final label = _fullLabel(platform);
+    final text = '$label ${snapshot.count}/${snapshot.limit}';
 
     return Semantics(
       button: true,
-      selected: selected,
-      label: '${_fullLabel(platform)} ${snapshot.count} of ${snapshot.limit}',
+      selected: true,
+      label: '$label ${snapshot.count} of ${snapshot.limit}',
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          key: Key('platform-badge-${platform.name}'),
+          key: Key('platform-focus-${platform.name}'),
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(99),
           child: Ink(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: selected
-                  ? tone.withValues(alpha: 0.16)
-                  : colors.surfaceContainerHighest.withValues(alpha: 0.55),
-              border: Border.all(
-                color: selected
-                    ? tone
-                    : colors.outlineVariant.withValues(alpha: 0.4),
-              ),
+              borderRadius: BorderRadius.circular(99),
+              color: tone.withValues(alpha: 0.12),
+              border: Border.all(color: tone.withValues(alpha: 0.85)),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: selected ? tone : colors.onSurface,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  _MiniMeter(fraction: snapshot.fraction, color: tone),
-                  if (showHookWarning) ...[
-                    const SizedBox(width: 6),
-                    const _HookWarningDot(),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniMeter extends StatelessWidget {
-  const _MiniMeter({required this.fraction, required this.color});
-
-  final double fraction;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    const width = 28.0;
-    final fill = fraction.clamp(0, 1).toDouble() * width;
-    return SizedBox(
-      width: width,
-      height: 4,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: SizedBox(
-            width: fill,
-            height: 4,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HookWarningDot extends StatelessWidget {
-  const _HookWarningDot();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const Key('linkedin-hook-warning'),
-      width: 8,
-      height: 8,
-      decoration: const BoxDecoration(
-        color: Color(0xFFD97706),
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
-class _FocusMeter extends StatelessWidget {
-  const _FocusMeter({
-    required this.platform,
-    required this.snapshot,
-    required this.hookWarning,
-    required this.hookLength,
-  });
-
-  final SocialPlatform platform;
-  final PlatformLimitSnapshot snapshot;
-  final bool hookWarning;
-  final int hookLength;
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = _toneColor(snapshot.tone);
-    final colors = Theme.of(context).colorScheme;
-    final label =
-        '${_fullLabel(platform)}  ${_group(snapshot.count)} / ${_group(snapshot.limit)}';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Text(
-                label,
-                key: Key('platform-focus-${platform.name}'),
+                text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colors.onSurface.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w700,
+                  color: tone,
                 ),
               ),
             ),
-            if (hookWarning)
-              Text(
-                'Hook $hookLength',
-                key: const Key('linkedin-hook-count'),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFD97706),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            key: Key('platform-progress-${snapshot.tone.name}'),
-            value: snapshot.fraction.clamp(0, 1).toDouble(),
-            minHeight: 4,
-            color: tone,
-            backgroundColor: tone.withValues(alpha: 0.15),
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
-String _shortLabel(SocialPlatform platform) {
-  switch (platform) {
-    case SocialPlatform.linkedIn:
-      return 'in';
-    case SocialPlatform.x:
-      return 'X';
-    case SocialPlatform.threads:
-      return 'Th';
+class _FoldDot extends StatelessWidget {
+  const _FoldDot({required this.withinFold});
+
+  final bool withinFold;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = withinFold
+        ? const Color(0xFF16A34A)
+        : const Color(0xFFD97706);
+    return Tooltip(
+      message: withinFold
+          ? 'Opening hook is within 210 characters'
+          : 'Opening hook is past 210 characters',
+      child: Semantics(
+        label: withinFold
+            ? 'LinkedIn fold within 210 characters'
+            : 'LinkedIn fold past 210 characters',
+        child: Container(
+          key: withinFold
+              ? const Key('linkedin-fold-dot')
+              : const Key('linkedin-hook-warning'),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+      ),
+    );
   }
 }
 
@@ -318,14 +183,4 @@ Color _toneColor(LimitTone tone) {
     case LimitTone.overflow:
       return const Color(0xFFDC2626);
   }
-}
-
-String _group(int value) {
-  final digits = value.abs().toString();
-  final buffer = StringBuffer();
-  for (var i = 0; i < digits.length; i++) {
-    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
-    buffer.write(digits[i]);
-  }
-  return value < 0 ? '-$buffer' : buffer.toString();
 }

@@ -146,15 +146,11 @@ void main() {
     test('font size shrinks as the draft grows', () {
       expect(
         CardLayout.fontSizeFor('Hi', CardAspectRatio.square),
-        greaterThan(
-          CardLayout.fontSizeFor('x' * 400, CardAspectRatio.square),
-        ),
+        greaterThan(CardLayout.fontSizeFor('x' * 400, CardAspectRatio.square)),
       );
       expect(
         CardLayout.fontSizeFor('Hi', CardAspectRatio.story),
-        greaterThan(
-          CardLayout.fontSizeFor('x' * 600, CardAspectRatio.story),
-        ),
+        greaterThan(CardLayout.fontSizeFor('x' * 600, CardAspectRatio.story)),
       );
     });
   });
@@ -220,8 +216,10 @@ void main() {
     });
 
     testWidgets('long drafts do not throw layout overflow', (tester) async {
-      final long = List.generate(80, (i) => 'Line $i of a very long draft.')
-          .join('\n');
+      final long = List.generate(
+        80,
+        (i) => 'Line $i of a very long draft.',
+      ).join('\n');
 
       await pumpCanvas(tester, text: long);
       expect(tester.takeException(), isNull);
@@ -318,11 +316,7 @@ void main() {
     ) async {
       const draft = 'A short quote for the card.';
       await tester.pumpWidget(
-        wrapExporter(
-          const MaterialApp(
-            home: CardExporterScreen(text: draft),
-          ),
-        ),
+        wrapExporter(const MaterialApp(home: CardExporterScreen(text: draft))),
       );
       await tester.pump();
       await tester.pump();
@@ -343,21 +337,64 @@ void main() {
         const Size(1080, 1920),
       );
 
-      await tester.ensureVisible(find.byKey(const Key('card-template-terminal')));
+      await tester.ensureVisible(
+        find.byKey(const Key('card-template-terminal')),
+      );
       await tester.tap(find.byKey(const Key('card-template-terminal')));
       await tester.pump();
       expect(find.byKey(const Key('terminal-traffic-lights')), findsOneWidget);
+    });
+
+    testWidgets('pinned hero keeps a proportional card for 1:1 and 9:16', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        wrapExporter(
+          const MaterialApp(
+            home: CardExporterScreen(text: 'A readable quote for the preview.'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      final square = tester.getSize(find.byKey(const Key('card-preview')));
+      expect(square.width, greaterThan(220));
+      expect(square.height, greaterThan(220));
+      expect(square.width / square.height, closeTo(1, 0.08));
+      expect(
+        tester.getSize(find.byKey(const Key('card-canvas'))),
+        const Size(1080, 1080),
+      );
+
+      await tester.tap(find.byKey(const Key('card-aspect-story')));
+      await tester.pump();
+
+      final story = tester.getSize(find.byKey(const Key('card-preview')));
+      expect(
+        story.width,
+        greaterThan(250),
+        reason: 'story=$story square=$square',
+      );
+      expect(story.height, greaterThan(square.height));
+      expect(story.width / story.height, closeTo(9 / 16, 0.08));
+      expect(
+        tester.getSize(find.byKey(const Key('card-canvas'))),
+        const Size(1080, 1920),
+      );
+      expect(find.byKey(const Key('card-exporter-controls')), findsOneWidget);
     });
 
     testWidgets('long drafts do not show a 280-character overflow warning', (
       tester,
     ) async {
       await tester.pumpWidget(
-        wrapExporter(
-          MaterialApp(
-            home: CardExporterScreen(text: 'x' * 400),
-          ),
-        ),
+        wrapExporter(MaterialApp(home: CardExporterScreen(text: 'x' * 400))),
       );
       await tester.pump();
       await tester.pump();
@@ -386,6 +423,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
+      await tester.ensureVisible(find.byKey(const Key('share-card-png')));
       await tester.tap(find.byKey(const Key('share-card-png')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));

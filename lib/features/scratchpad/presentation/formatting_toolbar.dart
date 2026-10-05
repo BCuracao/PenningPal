@@ -90,9 +90,8 @@ class FormattingToolbar extends StatelessWidget {
                                   activeKey: const Key('format-heading-active'),
                                   semanticLabel: 'Heading',
                                   active: header is num && header > 0,
-                                  onTap: () => _run(
-                                    () => cycleQuillHeading(controller),
-                                  ),
+                                  onTap: () =>
+                                      _run(() => cycleQuillHeading(controller)),
                                   child: const Text('H'),
                                 ),
                                 _FormatButton(
@@ -125,12 +124,12 @@ class FormattingToolbar extends StatelessWidget {
                                   buttonKey: const Key('format-code'),
                                   activeKey: const Key('format-code-active'),
                                   semanticLabel: 'Code',
-                                  active: _isOn(style, Attribute.inlineCode) ||
+                                  active:
+                                      _isOn(style, Attribute.inlineCode) ||
                                       _isOn(style, Attribute.codeBlock),
                                   monospace: true,
-                                  onTap: () => _run(
-                                    () => toggleQuillCode(controller),
-                                  ),
+                                  onTap: () =>
+                                      _run(() => toggleQuillCode(controller)),
                                   child: const Text('</>'),
                                 ),
                               ],
@@ -150,6 +149,9 @@ class FormattingToolbar extends StatelessWidget {
                               () => insertQuillSlideBreak(controller),
                               heavy: true,
                             ),
+                          ),
+                          _DismissKeyboardButton(
+                            onTap: () => FocusScope.of(context).unfocus(),
                           ),
                         ],
                       );
@@ -246,6 +248,45 @@ class _FormatButton extends StatelessWidget {
                     child: child,
                   ),
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DismissKeyboardButton extends StatelessWidget {
+  const _DismissKeyboardButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      key: const Key('dismiss-keyboard'),
+      button: true,
+      label: 'Dismiss keyboard',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: Ink(
+              width: 40,
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: colors.surfaceContainerHighest.withValues(alpha: 0.55),
+              ),
+              child: Icon(
+                Icons.keyboard_hide,
+                size: 18,
+                color: colors.onSurface,
               ),
             ),
           ),

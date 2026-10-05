@@ -175,7 +175,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
   }
 
   String? get _authorHandle {
-    return ref.read(cardSettingsProvider).formattedHandle ?? widget.authorHandle;
+    return ref.read(cardSettingsProvider).formattedHandle ??
+        widget.authorHandle;
   }
 
   @override
@@ -190,137 +191,203 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       letterSpacing: -0.2,
     );
 
+    final story = _aspect == CardAspectRatio.story;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Card / Carousel', style: titleStyle),
+      backgroundColor: colors.surface,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Column(
+              children: [
+                _buildHeader(titleStyle),
+                Expanded(
+                  flex: story ? 68 : 42,
+                  child: _buildHero(canAccessPro),
+                ),
+                Expanded(
+                  flex: story ? 32 : 58,
+                  child: _buildControlDeck(
+                    isProPurchased: isProPurchased,
+                    canAccessPro: canAccessPro,
+                    settings: settings,
+                  ),
+                ),
+              ],
+            ),
+            if (_isBusy)
+              _ExportProgressOverlay(
+                current: _exportCurrent,
+                total: _exportTotal,
+              ),
+          ],
+        ),
       ),
-      body: Stack(
+    );
+  }
+
+  Widget _buildHeader(TextStyle titleStyle) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 12, 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Column(
+          Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: _AspectSwitch(
-                  selected: _aspect,
-                  onChanged: _isBusy
-                      ? null
-                      : (next) => setState(() {
-                            _aspect = next;
-                            _activeKitId = null;
-                          }),
-                ),
-              ),
+              const BackButton(key: Key('card-exporter-back')),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: _buildPreview(canAccessPro),
-                ),
-              ),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.5,
-                ),
-                child: Column(
-                  children: [
-                    Flexible(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _ProfileSwitcherPill(
-                              settings: settings,
-                              enabled: !_isBusy,
-                              onTap: () => unawaited(_openProfileSwitcher()),
-                            ),
-                            FontPairingCarousel(
-                              selectedId: _fontPairingId,
-                              isProPurchased: isProPurchased,
-                              enabled: !_isBusy,
-                              onSelected: _onFontPairingSelected,
-                            ),
-                            BrandKitCarousel(
-                              kits: ref.watch(brandKitsProvider),
-                              selectedId: _activeKitId,
-                              enabled: !_isBusy,
-                              onSelected: _applyBrandKit,
-                              onSave: () => unawaited(_saveBrandKit()),
-                              onDelete: (kit) => unawaited(_deleteBrandKit(kit)),
-                            ),
-                            if (_roleAt(_safeSlideIndex) == SlideRole.cta)
-                              CtaQrControls(
-                                controller: _qrController,
-                                showQrCode: _showQrCode,
-                                enabled: !_isBusy,
-                                onShowQrCode: (value) =>
-                                    setState(() => _showQrCode = value),
-                              ),
-                            _CharacterMeter(text: _meterText),
-                            _WatermarkToggle(
-                              isProPurchased: isProPurchased,
-                              canAccessPro: canAccessPro,
-                              removeWatermark: !_theme.showWatermark,
-                              onChanged: _onRemoveWatermarkChanged,
-                            ),
-                            CardCustomizerControls(
-                              theme: _theme,
-                              isProPurchased: isProPurchased,
-                              canAccessPro: canAccessPro,
-                              enabled: !_isBusy,
-                              onChanged: _onPhotoBackdropChanged,
-                              onPickPhoto: () => unawaited(_pickPhotoBackdrop()),
-                              onLockedFeature: () => unawaited(_promptUpgrade(
-                                highlight:
-                                    'Custom photo backdrops with blur and contrast scrim',
-                              )),
-                            ),
-                            _TemplateCarousel(
-                              selected: _theme,
-                              isProPurchased: isProPurchased,
-                              onSelected: _onThemeSelected,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                        child: _ExportActionBar(
-                          busy: _busy,
-                          isCarousel: _deck.isCarousel,
-                          slideCount: _deck.totalSlides,
-                          isProPurchased: isProPurchased,
-                          onShare: _shareCard,
-                          onSave: _saveToPhotos,
-                          onCopy: _copyCard,
-                          onExportPdf: _exportLinkedInPdf,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'Card / Carousel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyle,
                 ),
               ),
             ],
           ),
-          if (_isBusy)
-            _ExportProgressOverlay(
-              current: _exportCurrent,
-              total: _exportTotal,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 4, 0),
+            child: _AspectSwitch(
+              selected: _aspect,
+              onChanged: _isBusy
+                  ? null
+                  : (next) => setState(() {
+                      _aspect = next;
+                      _activeKitId = null;
+                    }),
             ),
+          ),
         ],
       ),
-      backgroundColor: colors.surface,
+    );
+  }
+
+  Widget _buildControlDeck({
+    required bool isProPurchased,
+    required bool canAccessPro,
+    required CardSettings settings,
+  }) {
+    final deck = _deck;
+    final safeIndex = deck.totalSlides <= 1
+        ? 0
+        : _slideIndex.clamp(0, deck.totalSlides - 1);
+
+    return SingleChildScrollView(
+      key: const Key('card-exporter-controls'),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SlideRoleSelector(
+                role: _roleAt(safeIndex),
+                onChanged: _isBusy ? null : _setRole,
+              ),
+            ),
+          ),
+          SlideThumbnailStrip(
+            slides: deck.slides.isEmpty ? const [''] : deck.slides,
+            activeIndex: safeIndex,
+            enabled: !_isBusy,
+            onSelect: (index) => unawaited(_goToPage(index)),
+            onReorder: _reorderSlides,
+            onDuplicate: _duplicateSlide,
+            onDelete: _deleteSlide,
+            onAdd: _addSlide,
+          ),
+          if (deck.isCarousel)
+            _CarouselDots(
+              count: deck.totalSlides,
+              index: safeIndex,
+              onSelected: _isBusy
+                  ? null
+                  : (index) => unawaited(_goToPage(index)),
+            ),
+          BrandKitCarousel(
+            kits: ref.watch(brandKitsProvider),
+            selectedId: _activeKitId,
+            enabled: !_isBusy,
+            onSelected: _applyBrandKit,
+            onSave: () => unawaited(_saveBrandKit()),
+            onDelete: (kit) => unawaited(_deleteBrandKit(kit)),
+          ),
+          FontPairingCarousel(
+            selectedId: _fontPairingId,
+            isProPurchased: isProPurchased,
+            enabled: !_isBusy,
+            onSelected: _onFontPairingSelected,
+          ),
+          _ProfileSwitcherPill(
+            settings: settings,
+            enabled: !_isBusy,
+            onTap: () => unawaited(_openProfileSwitcher()),
+          ),
+          _TemplateCarousel(
+            selected: _theme,
+            isProPurchased: isProPurchased,
+            onSelected: _onThemeSelected,
+          ),
+          _WatermarkToggle(
+            isProPurchased: isProPurchased,
+            canAccessPro: canAccessPro,
+            removeWatermark: !_theme.showWatermark,
+            onChanged: _onRemoveWatermarkChanged,
+          ),
+          CardCustomizerControls(
+            theme: _theme,
+            isProPurchased: isProPurchased,
+            canAccessPro: canAccessPro,
+            enabled: !_isBusy,
+            onChanged: _onPhotoBackdropChanged,
+            onPickPhoto: () => unawaited(_pickPhotoBackdrop()),
+            onLockedFeature: () => unawaited(
+              _promptUpgrade(
+                highlight:
+                    'Custom photo backdrops with blur and contrast scrim',
+              ),
+            ),
+          ),
+          if (_roleAt(safeIndex) == SlideRole.cta)
+            CtaQrControls(
+              controller: _qrController,
+              showQrCode: _showQrCode,
+              enabled: !_isBusy,
+              onShowQrCode: (value) => setState(() => _showQrCode = value),
+            ),
+          _CharacterMeter(text: _meterText),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _ExportActionBar(
+              busy: _busy,
+              isCarousel: deck.isCarousel,
+              slideCount: deck.totalSlides,
+              isProPurchased: isProPurchased,
+              onShare: _shareCard,
+              onSave: _saveToPhotos,
+              onCopy: _copyCard,
+              onExportPdf: _exportLinkedInPdf,
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 
   void _onThemeSelected(CardThemeConfig preset) {
     if (preset.isPremium && !ref.read(canAccessProFeatureProvider)) {
-      unawaited(_promptUpgrade(
-        highlight: preset.isCustom
-            ? 'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes'
-            : null,
-      ));
+      unawaited(
+        _promptUpgrade(
+          highlight: preset.isCustom
+              ? 'Unlock Aurora, Editorial Cream, Neo-Brutal & Custom Hex themes'
+              : null,
+        ),
+      );
       return;
     }
     if (preset.isCustom) {
@@ -348,7 +415,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
           : Color(settings.customTextColor),
     );
     if (picked == null || !mounted) return;
-    await ref.read(cardSettingsProvider.notifier).update(
+    await ref
+        .read(cardSettingsProvider.notifier)
+        .update(
           customBackgroundColor: picked.background.toARGB32(),
           customTextColor: picked.text.toARGB32(),
           defaultThemeId: CardPresets.customId,
@@ -365,9 +434,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
 
   void _onRemoveWatermarkChanged(bool remove) {
     if (!ref.read(canAccessProFeatureProvider)) {
-      unawaited(_promptUpgrade(
-        highlight: "Remove 'Made with PenningPal' watermark",
-      ));
+      unawaited(
+        _promptUpgrade(highlight: "Remove 'Made with PenningPal' watermark"),
+      );
       return;
     }
     setState(() {
@@ -413,9 +482,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
 
   void _onFontPairingSelected(FontPairing pairing) {
     if (pairing.isPro && !ref.read(canAccessProFeatureProvider)) {
-      unawaited(
-        _promptUpgrade(highlight: '${pairing.name} font pairing'),
-      );
+      unawaited(_promptUpgrade(highlight: '${pairing.name} font pairing'));
       return;
     }
     setState(() {
@@ -426,7 +493,8 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
 
   void _applyBrandKit(BrandKit kit) {
     final pairing = FontPairings.byId(kit.fontPairingId);
-    final fontLocked = pairing != null &&
+    final fontLocked =
+        pairing != null &&
         pairing.isPro &&
         !ref.read(canAccessProFeatureProvider);
     setState(() {
@@ -440,9 +508,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     });
     unawaited(_precacheLogo(kit.logoPath));
     if (fontLocked) {
-      unawaited(
-        _promptUpgrade(highlight: '${pairing.name} font pairing'),
-      );
+      unawaited(_promptUpgrade(highlight: '${pairing.name} font pairing'));
     }
   }
 
@@ -472,10 +538,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       name: draft.name,
       logoPath: draft.logoPath ?? probe.logoPath,
     );
-    final saved = await ref.read(brandKitsProvider.notifier).saveKit(
-          kit,
-          isProPurchased: ref.read(isProPurchasedProvider),
-        );
+    final saved = await ref
+        .read(brandKitsProvider.notifier)
+        .saveKit(kit, isProPurchased: ref.read(isProPurchasedProvider));
     if (!mounted) return;
     if (!saved) {
       await _promptUpgrade(highlight: 'Free accounts can save 1 brand kit');
@@ -550,12 +615,6 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     });
   }
 
-  int get _safeSlideIndex {
-    final total = _deck.totalSlides;
-    if (total <= 1) return 0;
-    return _slideIndex.clamp(0, total - 1);
-  }
-
   GlobalKey _previewKeyFor(int index) =>
       _previewKeys.putIfAbsent(index, GlobalKey.new);
 
@@ -574,7 +633,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     final profile = settings.activeProfile;
     final preset =
         (profile?.avatarPreset ?? settings.avatarPreset) %
-            brandAvatarColors.length;
+        brandAvatarColors.length;
     return (
       path: profile?.avatarPath ?? settings.avatarPath,
       initials: profile?.initials ?? settings.initials,
@@ -582,7 +641,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     );
   }
 
-  Widget _buildPreview(bool isPro) {
+  Widget _buildHero(bool isPro) {
     final deck = _deck;
     final avatar = _creatorAvatar;
     final safeIndex = deck.totalSlides <= 1
@@ -609,7 +668,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
         qrDestination: _qrController.text,
         currentSlideIndex: 0,
         totalSlides: deck.totalSlides,
-        onInspect: _isBusy ? null : () => unawaited(_openInspect(deck.slideAt(0))),
+        onInspect: _isBusy
+            ? null
+            : () => unawaited(_openInspect(deck.slideAt(0))),
       );
     } else {
       preview = PageView.builder(
@@ -647,46 +708,28 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       );
     }
 
-    return Column(
-      children: [
-        if (deck.isCarousel)
-          _CarouselBanner(
-            label: deck.slideOfLabel(safeIndex),
-            onPrevious: _isBusy || safeIndex <= 0
-                ? null
-                : () => unawaited(_goToPage(safeIndex - 1)),
-            onNext: _isBusy || safeIndex >= deck.totalSlides - 1
-                ? null
-                : () => unawaited(_goToPage(safeIndex + 1)),
-          ),
-        Expanded(child: preview),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SlideRoleSelector(
-              role: _roleAt(safeIndex),
-              onChanged: _isBusy ? null : _setRole,
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+      child: Column(
+        children: [
+          if (deck.isCarousel)
+            _CarouselBanner(
+              label: deck.slideOfLabel(safeIndex),
+              onPrevious: _isBusy || safeIndex <= 0
+                  ? null
+                  : () => unawaited(_goToPage(safeIndex - 1)),
+              onNext: _isBusy || safeIndex >= deck.totalSlides - 1
+                  ? null
+                  : () => unawaited(_goToPage(safeIndex + 1)),
+            ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: preview,
             ),
           ),
-        ),
-        SlideThumbnailStrip(
-          slides: deck.slides.isEmpty ? const [''] : deck.slides,
-          activeIndex: safeIndex,
-          enabled: !_isBusy,
-          onSelect: (index) => unawaited(_goToPage(index)),
-          onReorder: _reorderSlides,
-          onDuplicate: _duplicateSlide,
-          onDelete: _deleteSlide,
-          onAdd: _addSlide,
-        ),
-        if (deck.isCarousel)
-          _CarouselDots(
-            count: deck.totalSlides,
-            index: safeIndex,
-            onSelected: _isBusy ? null : (index) => unawaited(_goToPage(index)),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -828,9 +871,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
       context: context,
       author: _authorName,
       authorHandle: _authorHandle,
-      slideRoles: [
-        for (var i = 0; i < deck.totalSlides; i++) _roleAt(i),
-      ],
+      slideRoles: [for (var i = 0; i < deck.totalSlides; i++) _roleAt(i)],
       avatarPath: _creatorAvatar.path,
       avatarInitials: _creatorAvatar.initials,
       avatarColor: _creatorAvatar.color,
@@ -982,10 +1023,7 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
     if (!deck.isCarousel) return;
     _beginExport(_ExportAction.pdf, deck);
     try {
-      final images = await _rasterizeDeck(
-        deck,
-        aspect: CardAspectRatio.square,
-      );
+      final images = await _rasterizeDeck(deck, aspect: CardAspectRatio.square);
       if (!mounted) return;
       if (images.isEmpty) {
         _showToast('Could not capture card');
@@ -1047,7 +1085,9 @@ class _CardExporterScreenState extends ConsumerState<CardExporterScreen> {
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
   }
@@ -1104,8 +1144,7 @@ class _ExportActionBar extends StatelessWidget {
               builder: (buttonContext) {
                 return FilledButton.icon(
                   key: const Key('export-linkedin-pdf'),
-                  onPressed:
-                      isBusy ? null : () => onExportPdf(buttonContext),
+                  onPressed: isBusy ? null : () => onExportPdf(buttonContext),
                   icon: busy == _ExportAction.pdf
                       ? const SizedBox(
                           width: 18,
@@ -1142,8 +1181,7 @@ class _ExportActionBar extends StatelessWidget {
                   builder: (buttonContext) {
                     return FilledButton.icon(
                       key: const Key('share-card-png'),
-                      onPressed:
-                          isBusy ? null : () => onShare(buttonContext),
+                      onPressed: isBusy ? null : () => onShare(buttonContext),
                       icon: busy == _ExportAction.share
                           ? const SizedBox(
                               width: 18,
@@ -1258,48 +1296,51 @@ class _ScaledPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ratio = aspectRatio.width / aspectRatio.height;
     return ColoredBox(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.35,
-          ),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest
+          .withValues(alpha: 0.35),
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: GestureDetector(
-            key: const Key('card-preview-tap'),
-            behavior: HitTestBehavior.opaque,
-            onTap: onInspect,
-            child: FittedBox(
-              key: const Key('card-preview'),
-              fit: BoxFit.contain,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 28,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: CardCanvas(
-                  canvasKey: canvasKey,
-                  text: text,
-                  aspectRatio: aspectRatio,
-                  theme: theme,
-                  author: author,
-                  authorHandle: authorHandle,
-                  isProPurchased: isProPurchased,
-                  currentSlideIndex: currentSlideIndex,
-                  totalSlides: totalSlides,
-                  slideRole: slideRole,
-                  avatarPath: avatarPath,
-                  avatarInitials: avatarInitials,
-                  avatarColor: avatarColor,
-                  fontPairingId: fontPairingId,
-                  logoPath: logoPath,
-                  showQrCode: showQrCode,
-                  qrDestination: qrDestination,
+          padding: const EdgeInsets.all(8),
+          child: AspectRatio(
+            aspectRatio: ratio,
+            child: GestureDetector(
+              key: const Key('card-preview-tap'),
+              behavior: HitTestBehavior.opaque,
+              onTap: onInspect,
+              child: FittedBox(
+                key: const Key('card-preview'),
+                fit: BoxFit.contain,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: CardCanvas(
+                    canvasKey: canvasKey,
+                    text: text,
+                    aspectRatio: aspectRatio,
+                    theme: theme,
+                    author: author,
+                    authorHandle: authorHandle,
+                    isProPurchased: isProPurchased,
+                    currentSlideIndex: currentSlideIndex,
+                    totalSlides: totalSlides,
+                    slideRole: slideRole,
+                    avatarPath: avatarPath,
+                    avatarInitials: avatarInitials,
+                    avatarColor: avatarColor,
+                    fontPairingId: fontPairingId,
+                    logoPath: logoPath,
+                    showQrCode: showQrCode,
+                    qrDestination: qrDestination,
+                  ),
                 ),
               ),
             ),
@@ -1311,10 +1352,7 @@ class _ScaledPreview extends StatelessWidget {
 }
 
 class _AspectSwitch extends StatelessWidget {
-  const _AspectSwitch({
-    required this.selected,
-    required this.onChanged,
-  });
+  const _AspectSwitch({required this.selected, required this.onChanged});
 
   final CardAspectRatio selected;
   final ValueChanged<CardAspectRatio>? onChanged;
@@ -1376,13 +1414,14 @@ class _ProfileSwitcherPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final profile = settings.activeProfile;
-    final name = profile?.displayName ??
+    final name =
+        profile?.displayName ??
         (settings.authorName.trim().isNotEmpty
             ? settings.authorName.trim()
             : 'My Brand');
     final initials = profile?.initials ?? settings.initials;
-    final avatarColor = brandAvatarColors[
-        (profile?.avatarPreset ?? settings.avatarPreset) %
+    final avatarColor =
+        brandAvatarColors[(profile?.avatarPreset ?? settings.avatarPreset) %
             brandAvatarColors.length];
 
     return Padding(
@@ -1392,7 +1431,9 @@ class _ProfileSwitcherPill extends StatelessWidget {
         child: Material(
           color: colors.surfaceContainerHighest.withValues(alpha: 0.7),
           shape: StadiumBorder(
-            side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+            side: BorderSide(
+              color: colors.outlineVariant.withValues(alpha: 0.7),
+            ),
           ),
           child: InkWell(
             key: const Key('profile-switcher-pill'),

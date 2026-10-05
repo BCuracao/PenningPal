@@ -54,7 +54,10 @@ void main() {
       expect(PlatformMetrics.analyze('x' * 501).threads.isOverflow, isTrue);
       expect(PlatformMetrics.analyze('x' * 3000).linkedIn.isOverflow, isFalse);
       expect(PlatformMetrics.analyze('x' * 3001).linkedIn.isOverflow, isTrue);
-      expect(PlatformMetrics.analyze('x' * 3001).linkedIn.fraction, greaterThan(1));
+      expect(
+        PlatformMetrics.analyze('x' * 3001).linkedIn.fraction,
+        greaterThan(1),
+      );
     });
 
     test('warns when the opening hook passes the 210-character fold', () {
@@ -139,15 +142,18 @@ void main() {
       expect(CarouselDeck.fromMarkdown(replaced).slides, hasLength(2));
     });
 
-    test('a blank draft inserts the template without an empty leading slide', () {
-      final applied = FrameworkTemplates.apply(
-        current: '   \n',
-        template: FrameworkTemplates.storyAndLesson,
-        mode: TemplateInsertMode.append,
-      );
-      expect(applied, FrameworkTemplates.storyAndLesson.markdown);
-      expect(CarouselDeck.fromMarkdown(applied).slides.first, isNotEmpty);
-    });
+    test(
+      'a blank draft inserts the template without an empty leading slide',
+      () {
+        final applied = FrameworkTemplates.apply(
+          current: '   \n',
+          template: FrameworkTemplates.storyAndLesson,
+          mode: TemplateInsertMode.append,
+        );
+        expect(applied, FrameworkTemplates.storyAndLesson.markdown);
+        expect(CarouselDeck.fromMarkdown(applied).slides.first, isNotEmpty);
+      },
+    );
   });
 
   group('creator power-up widgets', () {
@@ -169,25 +175,84 @@ void main() {
       );
 
       expect(find.byKey(const Key('platform-focus-linkedIn')), findsOneWidget);
-      expect(find.textContaining('281 / 3,000'), findsOneWidget);
+      expect(find.textContaining('LinkedIn 281/3000'), findsOneWidget);
+      expect(find.textContaining('2 words · 1 min'), findsOneWidget);
       expect(find.byKey(const Key('linkedin-hook-warning')), findsOneWidget);
-      expect(find.text('Opening hook is 281 characters'), findsOneWidget);
-      expect(find.textContaining('character 210'), findsOneWidget);
-      expect(find.textContaining('Line breaks at 40'), findsOneWidget);
+      expect(find.byKey(const Key('linkedin-fold-indicator')), findsOneWidget);
+      expect(find.text('Opening hook is 281 characters'), findsNothing);
+      expect(find.textContaining('Line breaks at'), findsNothing);
 
-      await tester.tap(find.byKey(const Key('platform-badge-x')));
+      await tester.tap(find.byKey(const Key('platform-focus-linkedIn')));
       await tester.pump();
 
       expect(find.byKey(const Key('platform-focus-x')), findsOneWidget);
-      expect(find.textContaining('281 / 280'), findsOneWidget);
-      expect(find.byKey(const Key('platform-progress-overflow')), findsOneWidget);
+      expect(find.textContaining('X 281/280'), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('platform-badge-threads')));
+      await tester.tap(find.byKey(const Key('platform-focus-x')));
       await tester.pump();
 
       expect(find.byKey(const Key('platform-focus-threads')), findsOneWidget);
-      expect(find.textContaining('281 / 500'), findsOneWidget);
-      expect(find.byKey(const Key('platform-progress-safe')), findsOneWidget);
+      expect(find.textContaining('Threads 281/500'), findsOneWidget);
+    });
+
+    testWidgets('keyboard hides the export bar and drag-dismiss is enabled', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+
+      final storage = DraftStorage();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [draftStorageProvider.overrideWithValue(storage)],
+          child: const MaterialApp(home: ScratchpadScreen()),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('export-toolbar')), findsNothing);
+      expect(find.byKey(const Key('formatting-toolbar')), findsOneWidget);
+      expect(find.byKey(const Key('platform-counter-hud')), findsOneWidget);
+      expect(find.byKey(const Key('dismiss-keyboard')), findsOneWidget);
+
+      final scroll = tester.widget<SingleChildScrollView>(
+        find.byKey(const Key('scratchpad-editor-scroll')),
+      );
+      expect(
+        scroll.keyboardDismissBehavior,
+        ScrollViewKeyboardDismissBehavior.onDrag,
+      );
+    });
+
+    testWidgets('dismiss keyboard button clears editor focus', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final storage = DraftStorage();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [draftStorageProvider.overrideWithValue(storage)],
+          child: const MaterialApp(home: ScratchpadScreen()),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('scratchpad-field')));
+      await tester.pump();
+      final editor = tester.widget<QuillEditor>(
+        find.byKey(const Key('scratchpad-field')),
+      );
+      expect(editor.focusNode.hasFocus, isTrue);
+
+      await tester.tap(find.byKey(const Key('dismiss-keyboard')));
+      await tester.pump();
+      expect(editor.focusNode.hasFocus, isFalse);
     });
 
     testWidgets('empty draft inserts a framework without a confirm dialog', (
@@ -258,9 +323,8 @@ void main() {
       expect(content, contains('### Lesson 1...'));
       expect(CarouselDeck.fromMarkdown(content).slides, hasLength(2));
       expect(
-        CarouselDeck.fromMarkdown(
-          deltaToMarkdown(markdownToDelta(content)),
-        ).slides,
+        CarouselDeck.fromMarkdown(deltaToMarkdown(markdownToDelta(content)))
+            .slides,
         hasLength(2),
       );
     });

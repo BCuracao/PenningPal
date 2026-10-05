@@ -105,15 +105,17 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
       },
     );
 
-    ref.listen<String>(
-      scratchpadProvider.select((value) => value.content),
-      (previous, next) {
-        if (previous == null || previous == next || _applyingExternal) return;
-        final current = deltaToMarkdown(_controller.document.toDelta());
-        if (current == next) return;
-        _loadDraft(next);
-      },
-    );
+    ref.listen<String>(scratchpadProvider.select((value) => value.content), (
+      previous,
+      next,
+    ) {
+      if (previous == null || previous == next || _applyingExternal) return;
+      final current = deltaToMarkdown(_controller.document.toDelta());
+      if (current == next) return;
+      _loadDraft(next);
+    });
+
+    final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -138,7 +140,10 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
                 onTap: _renameDraft,
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 4,
+                  ),
                   child: Row(
                     children: [
                       Flexible(
@@ -170,37 +175,71 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
         ),
         centerTitle: false,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-              child: QuillEditor(
-                key: const Key('scratchpad-field'),
-                controller: _controller,
-                focusNode: _focusNode,
-                scrollController: _scrollController,
-                config: QuillEditorConfig(
-                  expands: true,
-                  padding: EdgeInsets.zero,
-                  placeholder: 'Start writing…',
-                  textCapitalization: TextCapitalization.sentences,
-                  customStyles: scratchpadEditorStyles(context),
-                  embedBuilders: const [SlideBreakEmbedBuilder()],
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                child: Column(
+                  children: [
+                    Expanded(child: _buildEditor()),
+                    LinkedInFoldIndicator(markdown: state.content),
+                  ],
                 ),
               ),
             ),
-          ),
-          LinkedInFoldIndicator(markdown: state.content),
-          PlatformCounterHud(markdown: state.content),
-          FormattingToolbar(
-            controller: _controller,
-            onOpenTemplates: _openTemplates,
-          ),
-          const ExportToolbar(),
-          _ScratchpadStatusBar(state: state),
-        ],
+            PlatformCounterHud(markdown: state.content),
+            FormattingToolbar(
+              controller: _controller,
+              onOpenTemplates: _openTemplates,
+            ),
+            if (!isKeyboardVisible) ...[
+              const ExportToolbar(),
+              _ScratchpadStatusBar(state: state),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+
+  /// The editor's own scroll view dismisses the keyboard on drag.
+  ///
+  /// Quill's internal scroller does not expose [ScrollView.keyboardDismissBehavior],
+  /// so the document grows inside this view (`scrollable: false`) and caret
+  /// reveal keeps using the same [ScrollController].
+  Widget _buildEditor() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minHeight = constraints.maxHeight;
+        return SingleChildScrollView(
+          key: const Key('scratchpad-editor-scroll'),
+          controller: _scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minHeight),
+            child: QuillEditor(
+              key: const Key('scratchpad-field'),
+              controller: _controller,
+              focusNode: _focusNode,
+              scrollController: _scrollController,
+              config: QuillEditorConfig(
+                scrollable: false,
+                expands: false,
+                padding: EdgeInsets.zero,
+                minHeight: minHeight,
+                placeholder: 'Start writing…',
+                textCapitalization: TextCapitalization.sentences,
+                customStyles: scratchpadEditorStyles(context),
+                embedBuilders: const [SlideBreakEmbedBuilder()],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -247,9 +286,7 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
             key: const Key('draft-rename-field'),
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              hintText: DraftItem.untitled,
-            ),
+            decoration: const InputDecoration(hintText: DraftItem.untitled),
             onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
           ),
           actions: [
@@ -259,8 +296,7 @@ class _ScratchpadScreenState extends ConsumerState<ScratchpadScreen> {
             ),
             FilledButton(
               key: const Key('draft-rename-save'),
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(controller.text),
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
               child: const Text('Save'),
             ),
           ],
